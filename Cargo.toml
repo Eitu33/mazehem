@@ -1,0 +1,9 @@
+[package]
+name = "mazehem"
+version = "0.1.0"
+authors = [ "Thomas Plisson <thomas.plisson@epitech.eu>"]
+edition = "2018"
+
+[dependencies]
+kiss3d = "0.31"
+rand = "0.8.4"
