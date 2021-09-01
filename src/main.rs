@@ -1,5 +1,7 @@
+use kiss3d::event::{Action, Key, WindowEvent};
 use kiss3d::light::Light;
 use kiss3d::nalgebra::{Point2, Point3};
+use kiss3d::planar_camera::Sidescroll;
 use kiss3d::window::Window;
 use rand::prelude::*;
 use std::collections::HashMap;
@@ -118,7 +120,12 @@ fn main() {
         }
     }
 
-    while window.render() {
+    let mut cam = Sidescroll::new();
+    cam.set_at(Point2::new(
+        ((width * 10) / 2) as f32,
+        ((height * 10) / 2) as f32,
+    ));
+    while !window.should_close() {
         for v in &connected {
             for v2 in &v.n {
                 window.draw_planar_line(
@@ -128,5 +135,6 @@ fn main() {
                 )
             }
         }
+        window.render_with(None, Some(&mut cam), None);
     }
 }
