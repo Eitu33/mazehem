@@ -5,6 +5,14 @@ use kiss3d::window::Window;
 use rand::prelude::*;
 use std::collections::HashMap;
 
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+pub enum Pos {
+    Top,
+    Bot,
+    Left,
+    Right,
+}
+
 #[derive(Clone, Eq, Hash, Copy)]
 pub struct Coord {
     pub x: usize,
@@ -26,7 +34,7 @@ impl PartialEq for Coord {
 pub struct Cell {
     pub cmptd: bool,
     pub c: Coord,
-    pub n: Vec<Coord>,
+    pub n: HashMap<Pos, Coord>,
 }
 
 impl Cell {
@@ -34,44 +42,44 @@ impl Cell {
         Cell {
             cmptd: false,
             c,
-            n: Vec::new(),
+            n: HashMap::new(),
         }
     }
-    fn get_basic_neighbors(&mut self) -> Vec<Coord> {
-        vec![
-            Coord::new(self.c.x.saturating_sub(1), self.c.y),
-            Coord::new(self.c.x.saturating_add(1), self.c.y),
-            Coord::new(self.c.x, self.c.y.saturating_sub(1)),
-            Coord::new(self.c.x, self.c.y.saturating_add(1)),
-        ]
+    fn get_basic_neighbors(&mut self) -> HashMap<Pos, Coord> {
+        let mut basic = HashMap::new();
+        basic.insert(Pos::Top, Coord::new(self.c.x.saturating_sub(1), self.c.y));
+        basic.insert(Pos::Bot, Coord::new(self.c.x.saturating_add(1), self.c.y));
+        basic.insert(Pos::Left, Coord::new(self.c.x, self.c.y.saturating_sub(1)));
+        basic.insert(Pos::Right, Coord::new(self.c.x, self.c.y.saturating_add(1)));
+        basic
     }
     fn add_candidates(&mut self, candidates: &mut HashMap<Coord, Coord>) {
         let basic = self.get_basic_neighbors();
-        for coord in basic {
+        for (_, coord) in basic {
             if coord != self.c && !candidates.contains_key(&coord) {
                 candidates.insert(coord, coord);
             }
         }
         self.cmptd = true;
     }
-    fn find_neighbors(&mut self, candidates: &HashMap<Coord, Coord>) -> Vec<Coord> {
+    fn find_neighbors(&mut self, candidates: &HashMap<Coord, Coord>) -> Vec<(Pos, Coord)> {
         let basic = self.get_basic_neighbors();
         let mut neighbors = Vec::new();
-        for n in basic {
-            if let Some(c) = candidates.get(&n) {
-                neighbors.push(c.clone());
+        for (pos, coord) in basic {
+            if let Some(_) = candidates.get(&coord) {
+                neighbors.push((pos, coord));
             }
         }
         neighbors
     }
-    fn chose_candidate(&mut self, candidates: &mut HashMap<Coord, Coord>) -> Coord {
+    fn chose_candidate(&mut self, candidates: &mut HashMap<Coord, Coord>) -> (Pos, Coord) {
         let neighbors = self.find_neighbors(candidates);
         let nbr = rand::thread_rng().gen_range(0..neighbors.len());
-        candidates.remove(&neighbors[nbr]);
+        candidates.remove(&neighbors[nbr].1);
         neighbors[nbr]
     }
-    fn push_neighbor(&mut self, coord: Coord) {
-        self.n.push(coord.clone());
+    fn push_neighbor(&mut self, t: (Pos, Coord)) {
+        self.n.insert(t.0, t.1);
     }
 }
 
@@ -105,8 +113,8 @@ fn main() {
         // chose a candidate
         let cand = connected[nbr].chose_candidate(&mut candidates);
         // add candidate if it could be removed from the unconnected list
-        if let Some(_) = unconnected.remove(&cand) {
-            connected.push(Cell::new(cand.clone()));
+        if let Some(_) = unconnected.remove(&cand.1) {
+            connected.push(Cell::new(cand.1));
             connected[nbr].push_neighbor(cand);
         }
     }
@@ -121,7 +129,7 @@ fn main() {
             for v2 in &v.n {
                 window.draw_planar_line(
                     &Point2::new((v.c.x * 10) as f32, (v.c.y * 10) as f32),
-                    &Point2::new((v2.x * 10) as f32, (v2.y * 10) as f32),
+                    &Point2::new((v2.1.x * 10) as f32, (v2.1.y * 10) as f32),
                     &Point3::new(1.0, 0.0, 0.0),
                 )
             }
