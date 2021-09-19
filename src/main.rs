@@ -1,4 +1,3 @@
-use kiss3d::event::{Action, Key, WindowEvent};
 use kiss3d::light::Light;
 use kiss3d::nalgebra::{Point2, Point3};
 use kiss3d::planar_camera::Sidescroll;
@@ -8,18 +7,12 @@ use std::collections::HashMap;
 
 #[derive(Clone, Eq, Hash, Copy)]
 pub struct Coord {
-    pub x: i32,
-    pub y: i32,
+    pub x: usize,
+    pub y: usize,
 }
 
 impl Coord {
-    fn new(mut x: i32, mut y: i32) -> Coord {
-        if x < 0 {
-            x = 0;
-        }
-        if y < 0 {
-            y = 0;
-        }
+    fn new(x: usize, y: usize) -> Coord {
         Coord { x, y }
     }
 }
@@ -31,7 +24,7 @@ impl PartialEq for Coord {
 }
 
 pub struct Cell {
-    pub cptd: bool,
+    pub cmptd: bool,
     pub c: Coord,
     pub n: Vec<Coord>,
 }
@@ -39,44 +32,43 @@ pub struct Cell {
 impl Cell {
     fn new(c: Coord) -> Cell {
         Cell {
-            cptd: false,
+            cmptd: false,
             c,
-            n: vec![],
+            n: Vec::new(),
         }
     }
     fn get_basic_neighbors(&mut self) -> Vec<Coord> {
         vec![
-            Coord::new(self.c.x - 1, self.c.y),
-            Coord::new(self.c.x + 1, self.c.y),
-            Coord::new(self.c.x, self.c.y - 1),
-            Coord::new(self.c.x, self.c.y + 1),
+            Coord::new(self.c.x.saturating_sub(1), self.c.y),
+            Coord::new(self.c.x.saturating_add(1), self.c.y),
+            Coord::new(self.c.x, self.c.y.saturating_sub(1)),
+            Coord::new(self.c.x, self.c.y.saturating_add(1)),
         ]
     }
     fn add_candidates(&mut self, candidates: &mut HashMap<Coord, Coord>) {
-        let neighbors = self.get_basic_neighbors();
-        for coord in neighbors {
+        let basic = self.get_basic_neighbors();
+        for coord in basic {
             if coord != self.c && !candidates.contains_key(&coord) {
                 candidates.insert(coord, coord);
             }
         }
-        self.cptd = true;
+        self.cmptd = true;
     }
     fn find_neighbors(&mut self, candidates: &HashMap<Coord, Coord>) -> Vec<Coord> {
-        let neighbors = self.get_basic_neighbors();
-        let mut good = Vec::new();
-        for n in neighbors {
-            if let Some(a) = candidates.get(&n) {
-                good.push(a.clone());
+        let basic = self.get_basic_neighbors();
+        let mut neighbors = Vec::new();
+        for n in basic {
+            if let Some(c) = candidates.get(&n) {
+                neighbors.push(c.clone());
             }
         }
-        good
+        neighbors
     }
     fn chose_candidate(&mut self, candidates: &mut HashMap<Coord, Coord>) -> Coord {
-        let good = self.find_neighbors(candidates);
-        let a = rand::thread_rng().gen_range(0..good.len());
-        // self.n.push(good[a].clone());
-        candidates.remove(&good[a]);
-        good[a]
+        let neighbors = self.find_neighbors(candidates);
+        let nbr = rand::thread_rng().gen_range(0..neighbors.len());
+        candidates.remove(&neighbors[nbr]);
+        neighbors[nbr]
     }
     fn push_neighbor(&mut self, coord: Coord) {
         self.n.push(coord.clone());
@@ -87,10 +79,7 @@ fn init(width: usize, height: usize) -> HashMap<Coord, Coord> {
     let mut maze: HashMap<Coord, Coord> = HashMap::new();
     for x in 0..width {
         for y in 0..height {
-            maze.insert(
-                Coord::new(x as i32, y as i32),
-                Coord::new(x as i32, y as i32),
-            );
+            maze.insert(Coord::new(x, y), Coord::new(x, y));
         }
     }
     maze
@@ -105,18 +94,20 @@ fn main() {
 
     let mut candidates: HashMap<Coord, Coord> = HashMap::new();
     let mut unconnected: HashMap<Coord, Coord> = init(width, height);
-    let mut connected: Vec<Cell> = vec![Cell::new(Coord::new(width as i32 / 2, height as i32 / 2))];
-    unconnected.remove(&Coord::new(width as i32 / 2, height as i32 / 2));
+    let mut connected: Vec<Cell> = vec![Cell::new(Coord::new(width / 2, height / 2))];
+    unconnected.remove(&Coord::new(width / 2, height / 2));
     let mut rng = rand::thread_rng();
     while !unconnected.is_empty() {
-        let a = rng.gen_range(0..(connected.len()));
-        connected[a].add_candidates(&mut candidates);
-        // is neighbor
-        let cand = connected[a].chose_candidate(&mut candidates);
-        // end
+        // generate a random number
+        let nbr = rng.gen_range(0..(connected.len()));
+        // add adjacent cells to the list of candidates
+        connected[nbr].add_candidates(&mut candidates);
+        // chose a candidate
+        let cand = connected[nbr].chose_candidate(&mut candidates);
+        // add candidate if it could be removed from the unconnected list
         if let Some(_) = unconnected.remove(&cand) {
             connected.push(Cell::new(cand.clone()));
-            connected[a].push_neighbor(cand);
+            connected[nbr].push_neighbor(cand);
         }
     }
 
