@@ -5,13 +5,8 @@ use kiss3d::window::Window;
 use rand::prelude::*;
 use std::collections::HashMap;
 
-#[derive(PartialEq, Eq, Hash, Clone, Copy)]
-pub enum Pos {
-    Top,
-    Bot,
-    Left,
-    Right,
-}
+static HEIGHT: usize = 20;
+static WIDTH: usize = 20;
 
 #[derive(Clone, Eq, Hash, Copy)]
 pub struct Coord {
@@ -32,141 +27,82 @@ impl PartialEq for Coord {
 }
 
 pub struct Cell {
-    pub cmptd: bool,
+    pub computed: bool,
     pub c: Coord,
-    pub n: HashMap<Pos, Coord>,
+    pub n: Vec<(Coord, bool)>,
 }
 
 impl Cell {
-    fn new(c: Coord) -> Cell {
+    fn new(c: Coord, dead_index: Option<usize>) -> Cell {
         Cell {
-            cmptd: false,
+            computed: false,
             c,
-            n: HashMap::new(),
+            n: get_neighbors(c, dead_index),
         }
-    }
-    fn get_basic_neighbors(&mut self) -> HashMap<Pos, Coord> {
-        let mut n = HashMap::new();
-        n.insert(Pos::Top, Coord::new(self.c.x.saturating_sub(1), self.c.y));
-        n.insert(Pos::Bot, Coord::new(self.c.x.saturating_add(1), self.c.y));
-        n.insert(Pos::Left, Coord::new(self.c.x, self.c.y.saturating_sub(1)));
-        n.insert(Pos::Right, Coord::new(self.c.x, self.c.y.saturating_add(1)));
-        n
-    }
-    fn add_candidates(&mut self, candidates: &mut HashMap<Coord, Coord>) {
-        let basic = self.get_basic_neighbors();
-        for (_, coord) in basic {
-            if coord != self.c && !candidates.contains_key(&coord) {
-                candidates.insert(coord, coord);
-            }
-        }
-        self.cmptd = true;
-    }
-    fn find_neighbors(&mut self, candidates: &HashMap<Coord, Coord>) -> Vec<(Pos, Coord)> {
-        let basic = self.get_basic_neighbors();
-        let mut neighbors = Vec::new();
-        for (pos, coord) in basic {
-            if let Some(_) = candidates.get(&coord) {
-                neighbors.push((pos, coord));
-            }
-        }
-        neighbors
-    }
-    // Add Option Here
-    fn chose_candidate(&mut self, candidates: &mut HashMap<Coord, Coord>) -> (Pos, Coord) {
-        let neighbors = self.find_neighbors(candidates);
-        let nbr = rand::thread_rng().gen_range(0..neighbors.len());
-        candidates.remove(&neighbors[nbr].1);
-        neighbors[nbr]
-    }
-    fn push_neighbor(&mut self, t: (Pos, Coord)) {
-        self.n.insert(t.0, t.1);
-    }
-    fn draw_cell(&self, window: &mut Window, color: Point3<f32>) {
-        let here = 5;
-        if let None = self.n.get(&Pos::Top) {
-            window.draw_planar_line(
-                &Point2::new((self.c.x * 10 - here) as f32, (self.c.y * 10 + here) as f32),
-                &Point2::new((self.c.x * 10 + here) as f32, (self.c.y * 10 + here) as f32),
-                &color,
-            )
-        }
-        // if let None = self.n.get(&Pos::Bot) {
-        //     window.draw_planar_line(
-        //         &Point2::new((self.c.x * 10 - here) as f32, (self.c.y * 10 - here) as f32),
-        //         &Point2::new((self.c.x * 10 + here) as f32, (self.c.y * 10 - here) as f32),
-        //         &color,
-        //     )
-        // }
-        // if let None = self.n.get(&Pos::Left) {
-        //     window.draw_planar_line(
-        //         &Point2::new((self.c.x * 10 - here) as f32, (self.c.y * 10 - here) as f32),
-        //         &Point2::new((self.c.x * 10 - here) as f32, (self.c.y * 10 + here) as f32),
-        //         &color,
-        //     )
-        // }
-        // if let None = self.n.get(&Pos::Right) {
-        //     window.draw_planar_line(
-        //         &Point2::new((self.c.x * 10 + here) as f32, (self.c.y * 10 - here) as f32),
-        //         &Point2::new((self.c.x * 10 + here) as f32, (self.c.y * 10 + here) as f32),
-        //         &color,
-        //     )
-        // }
     }
 }
 
-fn init(width: usize, height: usize) -> HashMap<Coord, Coord> {
-    let mut maze: HashMap<Coord, Coord> = HashMap::new();
-    for x in 1..(width + 1) {
-        for y in 1..(height + 1) {
-            maze.insert(Coord::new(x, y), Coord::new(x, y));
+pub struct Maze {
+    pub walls: HashMap<Coord, Cell>,
+    pub paths: Vec<Cell>,
+}
+
+impl Maze {
+    fn new() -> Maze {
+        let mut walls: HashMap<Coord, Cell> = HashMap::new();
+        let paths = Vec::new();
+
+        for x in 0..(WIDTH + 1) {
+            walls.insert(Coord::new(0, x), Cell::new(Coord::new(0, x), Some(0)));
+            walls.insert(Coord::new(HEIGHT, x), Cell::new(Coord::new(HEIGHT, x), Some(2)));
+        }
+        for y in 1..HEIGHT {
+            walls.insert(Coord::new(y, 0), Cell::new(Coord::new(y, 0), Some(3)));
+            walls.insert(Coord::new(y, WIDTH), Cell::new(Coord::new(y, WIDTH), Some(1)));
+        }
+        // for y in 1..HEIGHT {
+        //     for x in 1..WIDTH {
+        //         walls.insert(Coord::new(y, x), Cell::new(Coord::new(y, x), None));
+        //     }
+        // }
+        Maze {
+            walls,
+            paths,
         }
     }
-    maze
+}
+
+fn get_neighbors(c: Coord, dead_index: Option<usize>) -> Vec<(Coord, bool)> {
+    let mut neighbors = vec![
+        (Coord::new(c.x.saturating_sub(1), c.y), true),
+        (Coord::new(c.x.saturating_add(1), c.y), true),
+        (Coord::new(c.x, c.y.saturating_sub(1)), true),
+        (Coord::new(c.x, c.y.saturating_add(1)), true),
+    ];
+    if let Some(index) = dead_index {
+        neighbors[index].1 = false;
+    }
+    neighbors
 }
 
 fn main() {
     let mut window = Window::new("mazehem");
-    window.set_light(Light::StickToCamera);
-
-    let width = 10;
-    let height = 10;
-
-    let mut candidates: HashMap<Coord, Coord> = HashMap::new();
-    let mut unconnected: HashMap<Coord, Coord> = init(width, height);
-    let mut connected: Vec<Cell> = vec![Cell::new(Coord::new(width / 2, height / 2))];
-    unconnected.remove(&Coord::new(width / 2, height / 2));
-    let mut rng = rand::thread_rng();
-    while !unconnected.is_empty() {
-        // generate a random number
-        let nbr = rng.gen_range(0..(connected.len()));
-        // add adjacent cells to the list of candidates
-        connected[nbr].add_candidates(&mut candidates);
-        // chose a candidate
-        let cand = connected[nbr].chose_candidate(&mut candidates);
-        // add candidate if it could be removed from the unconnected list
-        if let Some(_) = unconnected.remove(&cand.1) {
-            connected.push(Cell::new(cand.1));
-            connected[nbr].push_neighbor(cand);
-        }
-    }
-    println!("HERE: {}", connected.len());
-
     let mut cam = Sidescroll::new();
+    let maze = Maze::new();
+
+    window.set_light(Light::StickToCamera);
     cam.set_at(Point2::new(
-        ((width * 10)) as f32,
-        ((height * 10)) as f32,
+        ((WIDTH * 10) / 2) as f32,
+        ((HEIGHT * 10) / 2) as f32,
     ));
+
     while !window.should_close() {
-        for v in &connected {
-            v.draw_cell(&mut window, Point3::new(1.0, 0.0, 0.0));
-            for v2 in &v.n {
-                window.draw_planar_line(
-                    &Point2::new((v.c.x * 10) as f32, (v.c.y * 10) as f32),
-                    &Point2::new((v2.1.x * 10) as f32, (v2.1.y * 10) as f32),
-                    &Point3::new(0.0, 1.0, 0.0),
-                )
-            }
+        for w in &maze.walls {
+            window.draw_planar_line(
+                &Point2::new((w.1.c.x * 10) as f32, (w.1.c.y * 10) as f32),
+                &Point2::new((w.1.c.x * 10) as f32, ((w.1.c.y + 2) * 10) as f32),
+                &Point3::new(1.0, 0.0, 0.0),
+            )
         }
         window.render_with(None, Some(&mut cam), None);
     }
