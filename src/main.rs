@@ -5,6 +5,7 @@ use kiss3d::window::Window;
 use rand::prelude::*;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
+use std::fmt;
 
 static HEIGHT: usize = 20;
 static WIDTH: usize = 20;
@@ -61,6 +62,12 @@ impl Ord for Coord {
     }
 }
 
+impl fmt::Display for Coord {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "x = {} | y = {}", self.x, self.y)
+    }
+}
+
 #[derive(Clone)]
 pub struct Cell {
     pub computed: bool,
@@ -78,6 +85,17 @@ impl Cell {
             n: c.get_neighbors(dead_index),
         }
     }
+    fn draw_cell_as_wall(&self, window: &mut Window) {
+        for a in &self.n {
+            if a.1 {
+                window.draw_planar_line(
+                    &Point2::new((self.c.x * 10) as f32, (self.c.y * 10) as f32),
+                    &Point2::new((a.0.x * 10) as f32, (a.0.y * 10) as f32),
+                    &Point3::new(1.0, 0.0, 0.0),
+                );
+            }
+        }
+    }
 }
 
 pub struct Maze {
@@ -90,8 +108,8 @@ impl Maze {
         let mut walls: BTreeMap<Coord, Cell> = BTreeMap::new();
         let paths = vec![Cell::new(
             Coord::new(
-                rand::thread_rng().gen_range(1..WIDTH),
-                rand::thread_rng().gen_range(1..HEIGHT),
+                rand::thread_rng().gen_range(1..(WIDTH - 1)),
+                rand::thread_rng().gen_range(1..(HEIGHT - 1)),
             ),
             false,
             false,
@@ -100,48 +118,67 @@ impl Maze {
 
         for x in 0..(WIDTH + 1) {
             walls.insert(
-                Coord::new(0, x),
-                Cell::new(Coord::new(0, x), true, true, Some(0)),
+                Coord::new(x, 0),
+                Cell::new(Coord::new(x, 0), true, true, Some(0)),
             );
             walls.insert(
-                Coord::new(HEIGHT, x),
-                Cell::new(Coord::new(HEIGHT, x), true, true, Some(2)),
+                Coord::new(x, HEIGHT),
+                Cell::new(Coord::new(x, HEIGHT), true, true, Some(2)),
             );
         }
         for y in 1..HEIGHT {
             walls.insert(
-                Coord::new(y, 0),
-                Cell::new(Coord::new(y, 0), true, true, Some(3)),
+                Coord::new(0, y),
+                Cell::new(Coord::new(0, y), true, true, Some(3)),
             );
             walls.insert(
-                Coord::new(y, WIDTH),
-                Cell::new(Coord::new(y, WIDTH), true, true, Some(1)),
+                Coord::new(WIDTH, y),
+                Cell::new(Coord::new(WIDTH, y), true, true, Some(1)),
             );
         }
-        // for y in 1..HEIGHT {
-        //     for x in 1..WIDTH {
-        //         walls.insert(Coord::new(y, x), Cell::new(Coord::new(y, x), None));
-        //     }
-        // }
+        for y in 1..HEIGHT {
+            for x in 1..WIDTH {
+                walls.insert(
+                    Coord::new(x, y),
+                    Cell::new(Coord::new(x, y), false, true, None),
+                );
+            }
+        }
         Maze { walls, paths }
     }
 
-    fn get_candidate(&mut self, c: Coord) -> Cell {
+    fn remove_coord_from_adj_walls(&mut self, c: Coord) {
         let n = c.get_neighbors(None);
-        let mut index = rand::thread_rng().gen_range(0..4);
+
+        for a in n {
+            if a.1 && a.0.x < 21 {
+                println!("{}", a.0);
+                for b in &mut self.walls.get_mut(&a.0).unwrap().n {
+                    if b.0 == a.0 {
+                        b.1 = false;
+                    }
+                }
+            }
+        }
+    }
+
+    fn get_candidate(&mut self, c: Coord) -> Cell {
+        println!("HELLO");
+        let n = c.get_neighbors(None);
+        let mut index = 0;
 
         while n[index].1 == false {
-            index = rand::thread_rng().gen_range(0..4);
+            index += 1;
         }
-    
+
         let candidate = self.walls[&n[index].0].clone();
         let mut cell = self.walls.get_mut(&n[index].0).unwrap();
-    
+
         cell.computed = true;
         cell.is_wall = false;
-        // println("{}", elf.walls.get_mut(&n[index].0).unwrap().computed);
+        self.remove_coord_from_adj_walls(candidate.c);
+        // println!("{}", self.walls.get_mut(&n[index].0).unwrap().computed);
         candidate
-        // now cut the wall from other neighbors vectors
     }
 
     fn increment_path(&mut self) {
@@ -153,14 +190,27 @@ impl Maze {
 
         // push candidate
         self.paths.push(candidate);
+        println!("{}", self.paths.len());
+    }
+
+    fn walls_computation(&self) -> bool {
+        // println!("HELLO");
+        !self.walls.clone().into_iter().all(|a| a.1.computed)
+    }
+
+    fn compute(&mut self) {
+        while self.walls_computation() {
+            self.increment_path();
+        }
     }
 }
 
 fn main() {
     let mut window = Window::new("mazehem");
     let mut cam = Sidescroll::new();
-    let maze = Maze::new();
+    let mut maze = Maze::new();
 
+    maze.compute();
     window.set_light(Light::StickToCamera);
     cam.set_at(Point2::new(
         ((WIDTH * 10) / 2) as f32,
@@ -169,11 +219,7 @@ fn main() {
 
     while !window.should_close() {
         for w in &maze.walls {
-            window.draw_planar_line(
-                &Point2::new((w.1.c.x * 10) as f32, (w.1.c.y * 10) as f32),
-                &Point2::new((w.1.c.x * 10) as f32, ((w.1.c.y + 2) * 10) as f32),
-                &Point3::new(1.0, 0.0, 0.0),
-            )
+            w.1.draw_cell_as_wall(&mut window);
         }
         window.render_with(None, Some(&mut cam), None);
     }
