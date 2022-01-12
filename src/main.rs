@@ -31,10 +31,9 @@ impl PartialOrd for Coord {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         let y_cmp = self.y.partial_cmp(&other.y);
 
-        if y_cmp == Some(Ordering::Equal) {
-            self.x.partial_cmp(&other.x)
-        } else {
-            y_cmp
+        match y_cmp {
+            Some(Ordering::Equal) => self.x.partial_cmp(&other.x),
+            _ => y_cmp,
         }
     }
 }
@@ -43,10 +42,9 @@ impl Ord for Coord {
     fn cmp(&self, other: &Self) -> Ordering {
         let y_cmp = self.y.cmp(&other.y);
 
-        if y_cmp == Ordering::Equal {
-            self.x.cmp(&other.x)
-        } else {
-            y_cmp
+        match y_cmp {
+            Some(Ordering::Equal) => self.x.cmp(&other.x),
+            _ => y_cmp,
         }
     }
 }
