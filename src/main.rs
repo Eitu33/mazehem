@@ -3,7 +3,8 @@ use kiss3d::nalgebra::{Point2, Point3};
 use kiss3d::planar_camera::Sidescroll;
 use kiss3d::window::Window;
 use rand::prelude::*;
-use std::collections::HashMap;
+use std::cmp::Ordering;
+use std::collections::BTreeMap;
 
 static HEIGHT: usize = 20;
 static WIDTH: usize = 20;
@@ -26,6 +27,30 @@ impl PartialEq for Coord {
     }
 }
 
+impl PartialOrd for Coord {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let y_cmp = self.y.partial_cmp(&other.y);
+
+        if y_cmp == Some(Ordering::Equal) {
+            self.x.partial_cmp(&other.x)
+        } else {
+            y_cmp
+        }
+    }
+}
+
+impl Ord for Coord {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let y_cmp = self.y.cmp(&other.y);
+
+        if y_cmp == Ordering::Equal {
+            self.x.cmp(&other.x)
+        } else {
+            y_cmp
+        }
+    }
+}
+
 pub struct Cell {
     pub computed: bool,
     pub c: Coord,
@@ -43,33 +68,48 @@ impl Cell {
 }
 
 pub struct Maze {
-    pub walls: HashMap<Coord, Cell>,
+    pub walls: BTreeMap<Coord, Cell>,
     pub paths: Vec<Cell>,
 }
 
 impl Maze {
     fn new() -> Maze {
-        let mut walls: HashMap<Coord, Cell> = HashMap::new();
-        let paths = Vec::new();
+        let mut walls: BTreeMap<Coord, Cell> = BTreeMap::new();
+        let paths = vec![Cell::new(
+            Coord::new(
+                rand::thread_rng().gen_range(1..WIDTH),
+                rand::thread_rng().gen_range(1..HEIGHT),
+            ),
+            None,
+        )];
 
         for x in 0..(WIDTH + 1) {
             walls.insert(Coord::new(0, x), Cell::new(Coord::new(0, x), Some(0)));
-            walls.insert(Coord::new(HEIGHT, x), Cell::new(Coord::new(HEIGHT, x), Some(2)));
+            walls.insert(
+                Coord::new(HEIGHT, x),
+                Cell::new(Coord::new(HEIGHT, x), Some(2)),
+            );
         }
         for y in 1..HEIGHT {
             walls.insert(Coord::new(y, 0), Cell::new(Coord::new(y, 0), Some(3)));
-            walls.insert(Coord::new(y, WIDTH), Cell::new(Coord::new(y, WIDTH), Some(1)));
+            walls.insert(
+                Coord::new(y, WIDTH),
+                Cell::new(Coord::new(y, WIDTH), Some(1)),
+            );
         }
         // for y in 1..HEIGHT {
         //     for x in 1..WIDTH {
         //         walls.insert(Coord::new(y, x), Cell::new(Coord::new(y, x), None));
         //     }
         // }
-        Maze {
-            walls,
-            paths,
+        Maze { walls, paths }
+    }
+    fn retrieve_candidate(&mut self) {
+        for w in &self.walls {
+            
         }
     }
+    fn increment_path(&mut self) {}
 }
 
 fn get_neighbors(c: Coord, dead_index: Option<usize>) -> Vec<(Coord, bool)> {
