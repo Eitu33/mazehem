@@ -1,6 +1,7 @@
-use coffee::graphics::{Color, Frame, Mesh, Rectangle, Shape, Window, WindowSettings};
-use coffee::load::Task;
-use coffee::{Game, Timer};
+use kiss3d::light::Light;
+use kiss3d::nalgebra::{Point2, Point3};
+use kiss3d::planar_camera::Sidescroll;
+use kiss3d::window::Window;
 use rand::prelude::*;
 use std::collections::HashMap;
 
@@ -22,7 +23,6 @@ impl PartialEq for Coord {
     }
 }
 
-#[derive(Clone)]
 pub struct Cell {
     pub cmptd: bool,
     pub c: Coord,
@@ -85,85 +85,69 @@ fn init(width: usize, height: usize) -> HashMap<Coord, Coord> {
     maze
 }
 
-pub struct Maze {
-    unconnected: HashMap<Coord, Coord>,
-    candidates: HashMap<Coord, Coord>,
-    connected: Vec<Cell>,
-    width: usize,
-    height: usize,
-}
+fn main() {
+    let mut window = Window::new("mazehem");
+    window.set_light(Light::StickToCamera);
 
-impl Maze {
-    fn new(width: usize, height: usize) -> Maze {
-        Maze {
-            candidates: HashMap::new(),
-            unconnected: init(width, height),
-            connected: vec![Cell::new(Coord::new(width / 2, height / 2))],
-            width,
-            height,
+    let width = 21;
+    let height = 21;
+
+    let mut candidates: HashMap<Coord, Coord> = HashMap::new();
+    let mut unconnected: HashMap<Coord, Coord> = init(width, height);
+    let mut connected: Vec<Cell> = vec![Cell::new(Coord::new(width / 2, height / 2))];
+    unconnected.remove(&Coord::new(width / 2, height / 2));
+    let mut rng = rand::thread_rng();
+    while !unconnected.is_empty() {
+        // generate a random number
+        let nbr = rng.gen_range(0..(connected.len()));
+        // add adjacent cells to the list of candidates
+        connected[nbr].add_candidates(&mut candidates);
+        // chose a candidate
+        let cand = connected[nbr].chose_candidate(&mut candidates);
+        // add candidate if it could be removed from the unconnected list
+        if let Some(_) = unconnected.remove(&cand) {
+            connected.push(Cell::new(cand.clone()));
+            connected[nbr].push_neighbor(cand);
         }
     }
-    fn generate(&mut self) -> Vec<Cell> {
-        self.unconnected
-            .remove(&Coord::new(self.width / 2, self.height / 2));
-        let mut rng = rand::thread_rng();
-        while !self.unconnected.is_empty() {
-            // generate a random number
-            let nbr = rng.gen_range(0..(self.connected.len()));
-            // add adjacent cells to the list of candidates
-            self.connected[nbr].add_candidates(&mut self.candidates);
-            // chose a candidate
-            let cand = self.connected[nbr].chose_candidate(&mut self.candidates);
-            // add candidate if it could be removed from the unconnected list
-            if let Some(_) = self.unconnected.remove(&cand) {
-                self.connected.push(Cell::new(cand.clone()));
-                self.connected[nbr].push_neighbor(cand);
+
+    let mut cam = Sidescroll::new();
+    cam.set_at(Point2::new(
+        ((width * 30) / 2) as f32,
+        ((height * 30) / 2) as f32,
+    ));
+    let mut sup: usize;
+    while !window.should_close() {
+        for v in &connected {
+            for v2 in &v.n {
+                for i in 0..10 {
+                    if v.c.x == v2.x {
+                        if v2.y > v.c.y {
+                            sup = 10;
+                        } else {
+                            sup = 0;
+                        }
+                        window.draw_planar_line(
+                            &Point2::new(((v.c.x * 30) + i) as f32, ((v.c.y * 30) + sup) as f32),
+                            &Point2::new(((v2.x * 30) + i) as f32, ((v2.y * 30) + sup) as f32),
+                            &Point3::new(1.0, 0.0, 0.0),
+                        )
+                        
+                    } else if v.c.y == v2.y {
+                        if v2.x > v.c.x {
+                            sup = 10;
+                        } else {
+                            sup = 0;
+                        }
+                        window.draw_planar_line(
+                            &Point2::new(((v.c.x * 30) + sup) as f32, ((v.c.y * 30) + i) as f32),
+                            &Point2::new(((v2.x * 30) + sup) as f32, ((v2.y * 30) + i) as f32),
+                            &Point3::new(1.0, 0.0, 0.0),
+                        )
+                    }
+                }
             }
         }
-        self.connected.clone()
-    }
-}
-
-fn main() -> coffee::Result<()> {
-    Mazehem::run(WindowSettings {
-        title: String::from("Rectangle - Coffee"),
-        size: (1280, 1024),
-        resizable: false,
-        fullscreen: false,
-        maximized: true,
-    })
-}
-
-struct Mazehem {
-    cells: Vec<Cell>,
-}
-
-impl Game for Mazehem {
-    type Input = ();
-    type LoadingScreen = ();
-
-    fn load(_window: &Window) -> Task<Mazehem> {
-        let mut maze = Maze::new(20, 20);
-        let cells = maze.generate();
-        Task::succeed(|| Mazehem { cells })
-    }
-
-    fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
-        frame.clear(Color::WHITE);
-        let mut mesh = Mesh::new();
-        for cell in &self.cells {
-            for _neighbor in &cell.n {
-                mesh.fill(
-                    Shape::Rectangle(Rectangle {
-                        x: cell.c.x as f32,
-                        y: cell.c.y as f32,
-                        width: 5.0,
-                        height: 5.0,
-                    }),
-                    Color::BLACK,
-                );
-            }
-        }
-        mesh.draw(&mut frame.as_target());
+        window.render_with(None, Some(&mut cam), None);
     }
 }
