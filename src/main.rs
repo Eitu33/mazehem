@@ -1,14 +1,8 @@
-use kiss3d::light::Light;
-use kiss3d::nalgebra::{Point2, Point3};
-use kiss3d::planar_camera::Sidescroll;
-use kiss3d::window::Window;
+use coffee::graphics::{Color, Frame, Mesh, Rectangle, Shape, Window, WindowSettings};
+use coffee::load::Task;
+use coffee::{Game, Timer};
 use rand::prelude::*;
-use std::cmp::Ordering;
-use std::collections::BTreeMap;
-use std::fmt;
-
-static HEIGHT: usize = 20;
-static WIDTH: usize = 20;
+use std::collections::HashMap;
 
 #[derive(Clone, Eq, Hash, Copy)]
 pub struct Coord {
@@ -20,18 +14,6 @@ impl Coord {
     fn new(x: usize, y: usize) -> Coord {
         Coord { x, y }
     }
-    fn get_neighbors(&self, dead_index: Option<usize>) -> Vec<(Coord, bool)> {
-        let mut neighbors = vec![
-            (Coord::new(self.x.saturating_sub(1), self.y), true),
-            (Coord::new(self.x.saturating_add(1), self.y), true),
-            (Coord::new(self.x, self.y.saturating_sub(1)), true),
-            (Coord::new(self.x, self.y.saturating_add(1)), true),
-        ];
-        if let Some(index) = dead_index {
-            neighbors[index].1 = false;
-        }
-        neighbors
-    }
 }
 
 impl PartialEq for Coord {
@@ -40,187 +22,148 @@ impl PartialEq for Coord {
     }
 }
 
-impl PartialOrd for Coord {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        let y_cmp = self.y.partial_cmp(&other.y);
-
-        match y_cmp {
-            Some(Ordering::Equal) => self.x.partial_cmp(&other.x),
-            _ => y_cmp,
-        }
-    }
-}
-
-impl Ord for Coord {
-    fn cmp(&self, other: &Self) -> Ordering {
-        let y_cmp = self.y.cmp(&other.y);
-
-        match y_cmp {
-            Ordering::Equal => self.x.cmp(&other.x),
-            _ => y_cmp,
-        }
-    }
-}
-
-impl fmt::Display for Coord {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "x = {} | y = {}", self.x, self.y)
-    }
-}
-
 #[derive(Clone)]
 pub struct Cell {
-    pub computed: bool,
-    pub is_wall: bool,
+    pub cmptd: bool,
     pub c: Coord,
-    pub n: Vec<(Coord, bool)>,
+    pub n: Vec<Coord>,
 }
 
 impl Cell {
-    fn new(c: Coord, computed: bool, is_wall: bool, dead_index: Option<usize>) -> Cell {
+    fn new(c: Coord) -> Cell {
         Cell {
-            computed,
-            is_wall,
+            cmptd: false,
             c,
-            n: c.get_neighbors(dead_index),
+            n: Vec::new(),
         }
     }
-    fn draw_cell_as_wall(&self, window: &mut Window) {
-        for a in &self.n {
-            if a.1 {
-                window.draw_planar_line(
-                    &Point2::new((self.c.x * 10) as f32, (self.c.y * 10) as f32),
-                    &Point2::new((a.0.x * 10) as f32, (a.0.y * 10) as f32),
-                    &Point3::new(1.0, 0.0, 0.0),
-                );
+    fn get_basic_neighbors(&mut self) -> Vec<Coord> {
+        vec![
+            Coord::new(self.c.x.saturating_sub(1), self.c.y),
+            Coord::new(self.c.x.saturating_add(1), self.c.y),
+            Coord::new(self.c.x, self.c.y.saturating_sub(1)),
+            Coord::new(self.c.x, self.c.y.saturating_add(1)),
+        ]
+    }
+    fn add_candidates(&mut self, candidates: &mut HashMap<Coord, Coord>) {
+        let basic = self.get_basic_neighbors();
+        for coord in basic {
+            if coord != self.c && !candidates.contains_key(&coord) {
+                candidates.insert(coord, coord);
             }
         }
+        self.cmptd = true;
     }
+    fn find_neighbors(&mut self, candidates: &HashMap<Coord, Coord>) -> Vec<Coord> {
+        let basic = self.get_basic_neighbors();
+        let mut neighbors = Vec::new();
+        for n in basic {
+            if let Some(c) = candidates.get(&n) {
+                neighbors.push(c.clone());
+            }
+        }
+        neighbors
+    }
+    fn chose_candidate(&mut self, candidates: &mut HashMap<Coord, Coord>) -> Coord {
+        let neighbors = self.find_neighbors(candidates);
+        let nbr = rand::thread_rng().gen_range(0..neighbors.len());
+        candidates.remove(&neighbors[nbr]);
+        neighbors[nbr]
+    }
+    fn push_neighbor(&mut self, coord: Coord) {
+        self.n.push(coord.clone());
+    }
+}
+
+fn init(width: usize, height: usize) -> HashMap<Coord, Coord> {
+    let mut maze: HashMap<Coord, Coord> = HashMap::new();
+    for x in 0..width {
+        for y in 0..height {
+            maze.insert(Coord::new(x, y), Coord::new(x, y));
+        }
+    }
+    maze
 }
 
 pub struct Maze {
-    pub walls: BTreeMap<Coord, Cell>,
-    pub paths: Vec<Cell>,
+    unconnected: HashMap<Coord, Coord>,
+    candidates: HashMap<Coord, Coord>,
+    connected: Vec<Cell>,
+    width: usize,
+    height: usize,
 }
 
 impl Maze {
-    fn new() -> Maze {
-        let mut walls: BTreeMap<Coord, Cell> = BTreeMap::new();
-        let paths = vec![Cell::new(
-            Coord::new(
-                rand::thread_rng().gen_range(1..(WIDTH - 1)),
-                rand::thread_rng().gen_range(1..(HEIGHT - 1)),
-            ),
-            false,
-            false,
-            None,
-        )];
-
-        for x in 0..(WIDTH + 1) {
-            walls.insert(
-                Coord::new(x, 0),
-                Cell::new(Coord::new(x, 0), true, true, Some(0)),
-            );
-            walls.insert(
-                Coord::new(x, HEIGHT),
-                Cell::new(Coord::new(x, HEIGHT), true, true, Some(2)),
-            );
+    fn new(width: usize, height: usize) -> Maze {
+        Maze {
+            candidates: HashMap::new(),
+            unconnected: init(width, height),
+            connected: vec![Cell::new(Coord::new(width / 2, height / 2))],
+            width,
+            height,
         }
-        for y in 1..HEIGHT {
-            walls.insert(
-                Coord::new(0, y),
-                Cell::new(Coord::new(0, y), true, true, Some(3)),
-            );
-            walls.insert(
-                Coord::new(WIDTH, y),
-                Cell::new(Coord::new(WIDTH, y), true, true, Some(1)),
-            );
-        }
-        for y in 1..HEIGHT {
-            for x in 1..WIDTH {
-                walls.insert(
-                    Coord::new(x, y),
-                    Cell::new(Coord::new(x, y), false, true, None),
-                );
+    }
+    fn generate(&mut self) -> Vec<Cell> {
+        self.unconnected
+            .remove(&Coord::new(self.width / 2, self.height / 2));
+        let mut rng = rand::thread_rng();
+        while !self.unconnected.is_empty() {
+            // generate a random number
+            let nbr = rng.gen_range(0..(self.connected.len()));
+            // add adjacent cells to the list of candidates
+            self.connected[nbr].add_candidates(&mut self.candidates);
+            // chose a candidate
+            let cand = self.connected[nbr].chose_candidate(&mut self.candidates);
+            // add candidate if it could be removed from the unconnected list
+            if let Some(_) = self.unconnected.remove(&cand) {
+                self.connected.push(Cell::new(cand.clone()));
+                self.connected[nbr].push_neighbor(cand);
             }
         }
-        Maze { walls, paths }
-    }
-
-    fn remove_coord_from_adj_walls(&mut self, c: Coord) {
-        let n = c.get_neighbors(None);
-
-        for a in n {
-            if a.1 && a.0.x < 21 {
-                println!("{}", a.0);
-                for b in &mut self.walls.get_mut(&a.0).unwrap().n {
-                    if b.0 == a.0 {
-                        b.1 = false;
-                    }
-                }
-            }
-        }
-    }
-
-    fn get_candidate(&mut self, c: Coord) -> Cell {
-        println!("HELLO");
-        let n = c.get_neighbors(None);
-        let mut index = 0;
-
-        while n[index].1 == false {
-            index += 1;
-        }
-
-        let candidate = self.walls[&n[index].0].clone();
-        let mut cell = self.walls.get_mut(&n[index].0).unwrap();
-
-        cell.computed = true;
-        cell.is_wall = false;
-        self.remove_coord_from_adj_walls(candidate.c);
-        // println!("{}", self.walls.get_mut(&n[index].0).unwrap().computed);
-        candidate
-    }
-
-    fn increment_path(&mut self) {
-        // choose path cell to increment
-        let index = rand::thread_rng().gen_range(0..(self.paths.len()));
-
-        // get candidate
-        let candidate = self.get_candidate(self.paths[index].c);
-
-        // push candidate
-        self.paths.push(candidate);
-        println!("{}", self.paths.len());
-    }
-
-    fn walls_computation(&self) -> bool {
-        // println!("HELLO");
-        !self.walls.clone().into_iter().all(|a| a.1.computed)
-    }
-
-    fn compute(&mut self) {
-        while self.walls_computation() {
-            self.increment_path();
-        }
+        self.connected.clone()
     }
 }
 
-fn main() {
-    let mut window = Window::new("mazehem");
-    let mut cam = Sidescroll::new();
-    let mut maze = Maze::new();
+fn main() -> coffee::Result<()> {
+    Mazehem::run(WindowSettings {
+        title: String::from("Rectangle - Coffee"),
+        size: (1280, 1024),
+        resizable: false,
+        fullscreen: false,
+        maximized: true,
+    })
+}
 
-    maze.compute();
-    window.set_light(Light::StickToCamera);
-    cam.set_at(Point2::new(
-        ((WIDTH * 10) / 2) as f32,
-        ((HEIGHT * 10) / 2) as f32,
-    ));
+struct Mazehem {
+    cells: Vec<Cell>,
+}
 
-    while !window.should_close() {
-        for w in &maze.walls {
-            w.1.draw_cell_as_wall(&mut window);
+impl Game for Mazehem {
+    type Input = ();
+    type LoadingScreen = ();
+
+    fn load(_window: &Window) -> Task<Mazehem> {
+        let mut maze = Maze::new(20, 20);
+        let cells = maze.generate();
+        Task::succeed(|| Mazehem { cells })
+    }
+
+    fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
+        frame.clear(Color::WHITE);
+        let mut mesh = Mesh::new();
+        for cell in &self.cells {
+            for _neighbor in &cell.n {
+                mesh.fill(
+                    Shape::Rectangle(Rectangle {
+                        x: cell.c.x as f32,
+                        y: cell.c.y as f32,
+                        width: 5.0,
+                        height: 5.0,
+                    }),
+                    Color::BLACK,
+                );
+            }
         }
-        window.render_with(None, Some(&mut cam), None);
+        mesh.draw(&mut frame.as_target());
     }
 }
