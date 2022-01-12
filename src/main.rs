@@ -64,14 +64,16 @@ impl Ord for Coord {
 #[derive(Clone)]
 pub struct Cell {
     pub computed: bool,
+    pub is_wall: bool,
     pub c: Coord,
     pub n: Vec<(Coord, bool)>,
 }
 
 impl Cell {
-    fn new(c: Coord, computed: bool, dead_index: Option<usize>) -> Cell {
+    fn new(c: Coord, computed: bool, is_wall: bool, dead_index: Option<usize>) -> Cell {
         Cell {
-            computed: false,
+            computed,
+            is_wall,
             c,
             n: c.get_neighbors(dead_index),
         }
@@ -92,21 +94,28 @@ impl Maze {
                 rand::thread_rng().gen_range(1..HEIGHT),
             ),
             false,
+            false,
             None,
         )];
 
         for x in 0..(WIDTH + 1) {
-            walls.insert(Coord::new(0, x), Cell::new(Coord::new(0, x), true, Some(0)));
+            walls.insert(
+                Coord::new(0, x),
+                Cell::new(Coord::new(0, x), true, true, Some(0)),
+            );
             walls.insert(
                 Coord::new(HEIGHT, x),
-                Cell::new(Coord::new(HEIGHT, x), true, Some(2)),
+                Cell::new(Coord::new(HEIGHT, x), true, true, Some(2)),
             );
         }
         for y in 1..HEIGHT {
-            walls.insert(Coord::new(y, 0), Cell::new(Coord::new(y, 0), true, Some(3)));
+            walls.insert(
+                Coord::new(y, 0),
+                Cell::new(Coord::new(y, 0), true, true, Some(3)),
+            );
             walls.insert(
                 Coord::new(y, WIDTH),
-                Cell::new(Coord::new(y, WIDTH), true, Some(1)),
+                Cell::new(Coord::new(y, WIDTH), true, true, Some(1)),
             );
         }
         // for y in 1..HEIGHT {
@@ -124,16 +133,26 @@ impl Maze {
         while n[index].1 == false {
             index = rand::thread_rng().gen_range(0..4);
         }
-        self.walls.get_mut(&n[index].0).unwrap().computed = true;
-        self.walls[&n[index].0].clone()
+    
+        let candidate = self.walls[&n[index].0].clone();
+        let mut cell = self.walls.get_mut(&n[index].0).unwrap();
+    
+        cell.computed = true;
+        cell.is_wall = false;
+        // println("{}", elf.walls.get_mut(&n[index].0).unwrap().computed);
+        candidate
+        // now cut the wall from other neighbors vectors
     }
 
     fn increment_path(&mut self) {
         // choose path cell to increment
         let index = rand::thread_rng().gen_range(0..(self.paths.len()));
 
-        // get neighbors of that cell
+        // get candidate
         let candidate = self.get_candidate(self.paths[index].c);
+
+        // push candidate
+        self.paths.push(candidate);
     }
 }
 
