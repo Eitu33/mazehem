@@ -19,6 +19,18 @@ impl Coord {
     fn new(x: usize, y: usize) -> Coord {
         Coord { x, y }
     }
+    fn get_neighbors(&self, dead_index: Option<usize>) -> Vec<(Coord, bool)> {
+        let mut neighbors = vec![
+            (Coord::new(self.x.saturating_sub(1), self.y), true),
+            (Coord::new(self.x.saturating_add(1), self.y), true),
+            (Coord::new(self.x, self.y.saturating_sub(1)), true),
+            (Coord::new(self.x, self.y.saturating_add(1)), true),
+        ];
+        if let Some(index) = dead_index {
+            neighbors[index].1 = false;
+        }
+        neighbors
+    }
 }
 
 impl PartialEq for Coord {
@@ -43,7 +55,7 @@ impl Ord for Coord {
         let y_cmp = self.y.cmp(&other.y);
 
         match y_cmp {
-            Some(Ordering::Equal) => self.x.cmp(&other.x),
+            Ordering::Equal => self.x.cmp(&other.x),
             _ => y_cmp,
         }
     }
@@ -61,7 +73,7 @@ impl Cell {
         Cell {
             computed: false,
             c,
-            n: Maze::get_neighbors(c, dead_index),
+            n: c.get_neighbors(dead_index),
         }
     }
 }
@@ -105,21 +117,8 @@ impl Maze {
         Maze { walls, paths }
     }
 
-    fn get_neighbors(c: Coord, dead_index: Option<usize>) -> Vec<(Coord, bool)> {
-        let mut neighbors = vec![
-            (Coord::new(c.x.saturating_sub(1), c.y), true),
-            (Coord::new(c.x.saturating_add(1), c.y), true),
-            (Coord::new(c.x, c.y.saturating_sub(1)), true),
-            (Coord::new(c.x, c.y.saturating_add(1)), true),
-        ];
-        if let Some(index) = dead_index {
-            neighbors[index].1 = false;
-        }
-        neighbors
-    }
-
     fn get_candidate(&mut self, c: Coord) -> Cell {
-        let n = Maze::get_neighbors(c, None);
+        let n = c.get_neighbors(None);
         let mut index = rand::thread_rng().gen_range(0..4);
 
         while n[index].1 == false {
