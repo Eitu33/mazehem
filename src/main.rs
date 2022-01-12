@@ -51,6 +51,7 @@ impl Ord for Coord {
     }
 }
 
+#[derive(Clone)]
 pub struct Cell {
     pub computed: bool,
     pub c: Coord,
@@ -58,11 +59,11 @@ pub struct Cell {
 }
 
 impl Cell {
-    fn new(c: Coord, dead_index: Option<usize>) -> Cell {
+    fn new(c: Coord, computed: bool, dead_index: Option<usize>) -> Cell {
         Cell {
             computed: false,
             c,
-            n: get_neighbors(c, dead_index),
+            n: Maze::get_neighbors(c, dead_index),
         }
     }
 }
@@ -80,21 +81,22 @@ impl Maze {
                 rand::thread_rng().gen_range(1..WIDTH),
                 rand::thread_rng().gen_range(1..HEIGHT),
             ),
+            false,
             None,
         )];
 
         for x in 0..(WIDTH + 1) {
-            walls.insert(Coord::new(0, x), Cell::new(Coord::new(0, x), Some(0)));
+            walls.insert(Coord::new(0, x), Cell::new(Coord::new(0, x), true, Some(0)));
             walls.insert(
                 Coord::new(HEIGHT, x),
-                Cell::new(Coord::new(HEIGHT, x), Some(2)),
+                Cell::new(Coord::new(HEIGHT, x), true, Some(2)),
             );
         }
         for y in 1..HEIGHT {
-            walls.insert(Coord::new(y, 0), Cell::new(Coord::new(y, 0), Some(3)));
+            walls.insert(Coord::new(y, 0), Cell::new(Coord::new(y, 0), true, Some(3)));
             walls.insert(
                 Coord::new(y, WIDTH),
-                Cell::new(Coord::new(y, WIDTH), Some(1)),
+                Cell::new(Coord::new(y, WIDTH), true, Some(1)),
             );
         }
         // for y in 1..HEIGHT {
@@ -104,25 +106,38 @@ impl Maze {
         // }
         Maze { walls, paths }
     }
-    fn retrieve_candidate(&mut self) {
-        for w in &self.walls {
-            
-        }
-    }
-    fn increment_path(&mut self) {}
-}
 
-fn get_neighbors(c: Coord, dead_index: Option<usize>) -> Vec<(Coord, bool)> {
-    let mut neighbors = vec![
-        (Coord::new(c.x.saturating_sub(1), c.y), true),
-        (Coord::new(c.x.saturating_add(1), c.y), true),
-        (Coord::new(c.x, c.y.saturating_sub(1)), true),
-        (Coord::new(c.x, c.y.saturating_add(1)), true),
-    ];
-    if let Some(index) = dead_index {
-        neighbors[index].1 = false;
+    fn get_neighbors(c: Coord, dead_index: Option<usize>) -> Vec<(Coord, bool)> {
+        let mut neighbors = vec![
+            (Coord::new(c.x.saturating_sub(1), c.y), true),
+            (Coord::new(c.x.saturating_add(1), c.y), true),
+            (Coord::new(c.x, c.y.saturating_sub(1)), true),
+            (Coord::new(c.x, c.y.saturating_add(1)), true),
+        ];
+        if let Some(index) = dead_index {
+            neighbors[index].1 = false;
+        }
+        neighbors
     }
-    neighbors
+
+    fn get_candidate(&mut self, c: Coord) -> Cell {
+        let n = Maze::get_neighbors(c, None);
+        let mut index = rand::thread_rng().gen_range(0..4);
+
+        while n[index].1 == false {
+            index = rand::thread_rng().gen_range(0..4);
+        }
+        self.walls.get_mut(&n[index].0).unwrap().computed = true;
+        self.walls[&n[index].0].clone()
+    }
+
+    fn increment_path(&mut self) {
+        // choose path cell to increment
+        let index = rand::thread_rng().gen_range(0..(self.paths.len()));
+
+        // get neighbors of that cell
+        let candidate = self.get_candidate(self.paths[index].c);
+    }
 }
 
 fn main() {
