@@ -23,6 +23,7 @@ impl PartialEq for Coord {
     }
 }
 
+#[derive(Clone)]
 pub struct Cell {
     pub cmptd: bool,
     pub c: Coord,
@@ -82,34 +83,51 @@ fn init(width: usize, height: usize) -> HashMap<Coord, Coord> {
             maze.insert(Coord::new(x, y), Coord::new(x, y));
         }
     }
+    maze.remove(&Coord::new(width / 2, height / 2));
     maze
 }
 
-fn main() {
-    let mut window = Window::new("mazehem");
-    window.set_light(Light::StickToCamera);
+pub struct Maze {
+    candidates: HashMap<Coord, Coord>,
+    unconnected: HashMap<Coord, Coord>,
+    connected: Vec<Cell>,
+}
 
-    let width = 21;
-    let height = 21;
-
-    let mut candidates: HashMap<Coord, Coord> = HashMap::new();
-    let mut unconnected: HashMap<Coord, Coord> = init(width, height);
-    let mut connected: Vec<Cell> = vec![Cell::new(Coord::new(width / 2, height / 2))];
-    unconnected.remove(&Coord::new(width / 2, height / 2));
-    let mut rng = rand::thread_rng();
-    while !unconnected.is_empty() {
-        // generate a random number
-        let nbr = rng.gen_range(0..(connected.len()));
-        // add adjacent cells to the list of candidates
-        connected[nbr].add_candidates(&mut candidates);
-        // chose a candidate
-        let cand = connected[nbr].chose_candidate(&mut candidates);
-        // add candidate if it could be removed from the unconnected list
-        if let Some(_) = unconnected.remove(&cand) {
-            connected.push(Cell::new(cand.clone()));
-            connected[nbr].push_neighbor(cand);
+impl Maze {
+    fn new(width: usize, height: usize) -> Maze {
+        Maze {
+            candidates: HashMap::new(),
+            unconnected: init(width, height),
+            connected: vec![Cell::new(Coord::new(width / 2, height / 2))],
         }
     }
+    fn generate(&mut self) -> Vec<Cell> {
+        let mut rng = rand::thread_rng();
+
+        while !self.unconnected.is_empty() {
+            // generate a random number
+            let nbr = rng.gen_range(0..(self.connected.len()));
+            // add adjacent cells to the list of candidates
+            self.connected[nbr].add_candidates(&mut self.candidates);
+            // chose a candidate
+            let candidate = self.connected[nbr].chose_candidate(&mut self.candidates);
+            // add candidate if it could be removed from the unconnected list
+            if let Some(_) = self.unconnected.remove(&candidate) {
+                self.connected.push(Cell::new(candidate.clone()));
+                self.connected[nbr].push_neighbor(candidate);
+            }
+        }
+        self.connected.clone()
+    }
+}
+
+fn main() {
+    let width = 42;
+    let height = 42;
+    let mut maze = Maze::new(width, height);
+    let cells = maze.generate();
+    let mut window = Window::new("mazehem");
+    window.set_light(Light::StickToCamera);
 
     let mut cam = Sidescroll::new();
     cam.set_at(Point2::new(
@@ -118,9 +136,10 @@ fn main() {
     ));
     let mut sup: usize;
     while !window.should_close() {
-        for v in &connected {
+        for v in &cells {
             for v2 in &v.n {
-                for i in 0..10 {
+                for i in 0..100 {
+                    let a = i as f32 * 0.1;
                     if v.c.x == v2.x {
                         if v2.y > v.c.y {
                             sup = 10;
@@ -128,11 +147,10 @@ fn main() {
                             sup = 0;
                         }
                         window.draw_planar_line(
-                            &Point2::new(((v.c.x * 30) + i) as f32, ((v.c.y * 30) + sup) as f32),
-                            &Point2::new(((v2.x * 30) + i) as f32, ((v2.y * 30) + sup) as f32),
-                            &Point3::new(1.0, 0.0, 0.0),
+                            &Point2::new(((v.c.x * 30) + 0) as f32 + a, ((v.c.y * 30) + sup) as f32),
+                            &Point2::new(((v2.x * 30) + 0) as f32 + a, ((v2.y * 30) + sup) as f32),
+                            &Point3::new(0.0, 1.0, 0.0),
                         )
-                        
                     } else if v.c.y == v2.y {
                         if v2.x > v.c.x {
                             sup = 10;
@@ -140,8 +158,8 @@ fn main() {
                             sup = 0;
                         }
                         window.draw_planar_line(
-                            &Point2::new(((v.c.x * 30) + sup) as f32, ((v.c.y * 30) + i) as f32),
-                            &Point2::new(((v2.x * 30) + sup) as f32, ((v2.y * 30) + i) as f32),
+                            &Point2::new(((v.c.x * 30) + sup) as f32, ((v.c.y * 30) + 0) as f32 + a),
+                            &Point2::new(((v2.x * 30) + sup) as f32, ((v2.y * 30) + 0) as f32 + a),
                             &Point3::new(1.0, 0.0, 0.0),
                         )
                     }
