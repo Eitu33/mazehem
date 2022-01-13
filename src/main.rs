@@ -4,7 +4,7 @@ use coffee::{Game, Timer};
 use rand::Rng;
 use std::collections::HashMap;
 
-#[derive(Clone, Eq, Hash, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub struct Coord {
     pub x: usize,
     pub y: usize,
@@ -13,12 +13,6 @@ pub struct Coord {
 impl Coord {
     fn new(x: usize, y: usize) -> Coord {
         Coord { x, y }
-    }
-}
-
-impl PartialEq for Coord {
-    fn eq(&self, other: &Self) -> bool {
-        self.x == other.x && self.y == other.y
     }
 }
 
@@ -59,7 +53,7 @@ impl Cell {
         let mut neighbors = Vec::new();
         for coord in basic {
             if candidates.contains_key(&coord) {
-                neighbors.push(coord.clone());
+                neighbors.push(coord);
             }
         }
         neighbors
@@ -71,7 +65,7 @@ impl Cell {
         neighbors[index]
     }
     fn push_neighbor(&mut self, coord: Coord) {
-        self.n.push(coord.clone());
+        self.n.push(coord);
     }
     fn draw(&self, mesh: &mut Mesh) {
         let mut width: f32;
@@ -137,8 +131,8 @@ impl Maze {
             // chose a candidate
             let chosen = self.connected[nbr].chose_candidate(&mut self.candidates);
             // add candidate if it could be removed from the unconnected list
-            if let Some(_) = self.unconnected.remove(&chosen) {
-                self.connected.push(Cell::new(chosen.clone()));
+            if self.unconnected.remove(&chosen).is_some() {
+                self.connected.push(Cell::new(chosen));
                 self.connected[nbr].push_neighbor(chosen);
             }
         }
