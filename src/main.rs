@@ -47,7 +47,6 @@ impl Cell {
     }
     fn add_candidates(&mut self, candidates: &mut HashMap<Coord, ()>) {
         let basic = self.get_basic_neighbors();
-
         for coord in basic {
             if coord != self.c && !candidates.contains_key(&coord) {
                 candidates.insert(coord, ());
@@ -58,7 +57,6 @@ impl Cell {
     fn find_neighbors(&mut self, candidates: &HashMap<Coord, ()>) -> Vec<Coord> {
         let basic = self.get_basic_neighbors();
         let mut neighbors = Vec::new();
-
         for coord in basic {
             if candidates.contains_key(&coord) {
                 neighbors.push(coord.clone());
@@ -69,7 +67,6 @@ impl Cell {
     fn chose_candidate(&mut self, candidates: &mut HashMap<Coord, ()>) -> Coord {
         let neighbors = self.find_neighbors(candidates);
         let index = rand::thread_rng().gen_range(0..neighbors.len());
-
         candidates.remove(&neighbors[index]);
         neighbors[index]
     }
@@ -81,7 +78,6 @@ impl Cell {
         let mut height: f32;
         let mut a: usize;
         let mut b: usize;
-
         for neighbor in &self.n {
             width = 10.0;
             height = 10.0;
@@ -120,7 +116,6 @@ pub struct Maze {
 impl Maze {
     fn new(width: usize, height: usize) -> Maze {
         let mut unconnected: HashMap<Coord, ()> = HashMap::new();
-
         for x in 0..width {
             for y in 0..height {
                 unconnected.insert(Coord::new(x, y), ());
@@ -134,7 +129,6 @@ impl Maze {
     }
     fn generate(&mut self) -> Vec<Cell> {
         let mut rng = rand::thread_rng();
-
         while !self.unconnected.is_empty() {
             // generate a random number
             let nbr = rng.gen_range(0..(self.connected.len()));
@@ -173,13 +167,10 @@ impl Game for Mazehem {
     fn load(_window: &Window) -> Task<Mazehem> {
         let mut maze = Maze::new(30, 30);
         let cells = maze.generate();
-
         Task::succeed(|| Mazehem { cells })
     }
-
     fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
         let mut mesh = Mesh::new();
-
         frame.clear(Color::BLACK);
         for cell in &self.cells {
             cell.draw(&mut mesh);
