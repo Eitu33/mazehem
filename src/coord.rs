@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub struct Coord {
     pub x: usize,
@@ -9,3 +11,10 @@ impl Coord {
         Coord { x, y }
     }
 }
+
+impl fmt::Display for Coord {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({}, {})", self.x, self.y)
+    }
+}
+
