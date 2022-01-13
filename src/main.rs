@@ -1,7 +1,7 @@
 use coffee::graphics::{Color, Frame, Mesh, Rectangle, Shape, Window, WindowSettings};
 use coffee::load::Task;
 use coffee::{Game, Timer};
-use rand::prelude::*;
+use rand::Rng;
 use std::collections::HashMap;
 
 #[derive(Clone, Eq, Hash, Copy)]
@@ -45,52 +45,53 @@ impl Cell {
             Coord::new(self.c.x, self.c.y.saturating_add(1)),
         ]
     }
-    fn add_candidates(&mut self, candidates: &mut HashMap<Coord, Coord>) {
+    fn add_candidates(&mut self, candidates: &mut HashMap<Coord, ()>) {
         let basic = self.get_basic_neighbors();
 
         for coord in basic {
             if coord != self.c && !candidates.contains_key(&coord) {
-                candidates.insert(coord, coord);
+                candidates.insert(coord, ());
             }
         }
         self.computed = true;
     }
-    fn find_neighbors(&mut self, candidates: &HashMap<Coord, Coord>) -> Vec<Coord> {
+    fn find_neighbors(&mut self, candidates: &HashMap<Coord, ()>) -> Vec<Coord> {
         let basic = self.get_basic_neighbors();
         let mut neighbors = Vec::new();
 
-        for n in basic {
-            if let Some(c) = candidates.get(&n) {
-                neighbors.push(c.clone());
+        for coord in basic {
+            if candidates.contains_key(&coord) {
+                neighbors.push(coord.clone());
             }
         }
         neighbors
     }
-    fn chose_candidate(&mut self, candidates: &mut HashMap<Coord, Coord>) -> Coord {
+    fn chose_candidate(&mut self, candidates: &mut HashMap<Coord, ()>) -> Coord {
         let neighbors = self.find_neighbors(candidates);
-        let nbr = rand::thread_rng().gen_range(0..neighbors.len());
+        let index = rand::thread_rng().gen_range(0..neighbors.len());
 
-        candidates.remove(&neighbors[nbr]);
-        neighbors[nbr]
+        candidates.remove(&neighbors[index]);
+        neighbors[index]
     }
     fn push_neighbor(&mut self, coord: Coord) {
         self.n.push(coord.clone());
     }
 }
 
-fn init(width: usize, height: usize) -> HashMap<Coord, Coord> {
-    let mut maze: HashMap<Coord, Coord> = HashMap::new();
+fn init(width: usize, height: usize) -> HashMap<Coord, ()> {
+    let mut unconnected: HashMap<Coord, ()> = HashMap::new();
+
     for x in 0..width {
         for y in 0..height {
-            maze.insert(Coord::new(x, y), Coord::new(x, y));
+            unconnected.insert(Coord::new(x, y), ());
         }
     }
-    maze
+    unconnected
 }
 
 pub struct Maze {
-    unconnected: HashMap<Coord, Coord>,
-    candidates: HashMap<Coord, Coord>,
+    unconnected: HashMap<Coord, ()>,
+    candidates: HashMap<Coord, ()>,
     connected: Vec<Cell>,
 }
 
