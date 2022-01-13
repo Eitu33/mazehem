@@ -76,17 +76,39 @@ impl Cell {
     fn push_neighbor(&mut self, coord: Coord) {
         self.n.push(coord.clone());
     }
-}
+    fn draw(&self, mesh: &mut Mesh) {
+        let mut width: f32;
+        let mut height: f32;
+        let mut a: usize;
+        let mut b: usize;
 
-fn init(width: usize, height: usize) -> HashMap<Coord, ()> {
-    let mut unconnected: HashMap<Coord, ()> = HashMap::new();
-
-    for x in 0..width {
-        for y in 0..height {
-            unconnected.insert(Coord::new(x, y), ());
+        for neighbor in &self.n {
+            width = 10.0;
+            height = 10.0;
+            a = 0;
+            b = 0;
+            if neighbor.y == self.c.y && neighbor.x < self.c.x {
+                width = 30.0;
+                a = 20;
+            } else if neighbor.y == self.c.y && neighbor.x > self.c.x {
+                width = 30.0;
+            } else if neighbor.x == self.c.x && neighbor.y < self.c.y {
+                height = 30.0;
+                b = 20;
+            } else if neighbor.x == self.c.x && neighbor.y > self.c.y {
+                height = 30.0;
+            }
+            mesh.fill(
+                Shape::Rectangle(Rectangle {
+                    x: (self.c.x * 20 - a) as f32,
+                    y: (self.c.y * 20 - b) as f32,
+                    width,
+                    height,
+                }),
+                Color::WHITE,
+            );
         }
     }
-    unconnected
 }
 
 pub struct Maze {
@@ -97,9 +119,16 @@ pub struct Maze {
 
 impl Maze {
     fn new(width: usize, height: usize) -> Maze {
+        let mut unconnected: HashMap<Coord, ()> = HashMap::new();
+
+        for x in 0..width {
+            for y in 0..height {
+                unconnected.insert(Coord::new(x, y), ());
+            }
+        }
         Maze {
             candidates: HashMap::new(),
-            unconnected: init(width, height),
+            unconnected,
             connected: vec![Cell::new(Coord::new(width / 2, height / 2))],
         }
     }
@@ -144,56 +173,16 @@ impl Game for Mazehem {
     fn load(_window: &Window) -> Task<Mazehem> {
         let mut maze = Maze::new(30, 30);
         let cells = maze.generate();
+
         Task::succeed(|| Mazehem { cells })
     }
 
     fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
-        frame.clear(Color::BLACK);
         let mut mesh = Mesh::new();
+
+        frame.clear(Color::BLACK);
         for cell in &self.cells {
-            for neighbor in &cell.n {
-                if neighbor.x == cell.c.x && neighbor.y < cell.c.y {
-                    mesh.fill(
-                        Shape::Rectangle(Rectangle {
-                            x: (cell.c.x * 20) as f32,
-                            y: (cell.c.y * 20 - 20) as f32,
-                            width: 10.0,
-                            height: 30.0,
-                        }),
-                        Color::WHITE,
-                    );
-                } else if neighbor.x == cell.c.x && neighbor.y > cell.c.y {
-                    mesh.fill(
-                        Shape::Rectangle(Rectangle {
-                            x: (cell.c.x * 20) as f32,
-                            y: (cell.c.y * 20) as f32,
-                            width: 10.0,
-                            height: 30.0,
-                        }),
-                        Color::WHITE,
-                    );
-                } else if neighbor.y == cell.c.y && neighbor.x < cell.c.x {
-                    mesh.fill(
-                        Shape::Rectangle(Rectangle {
-                            x: (cell.c.x * 20 - 20) as f32,
-                            y: (cell.c.y * 20) as f32,
-                            width: 30.0,
-                            height: 10.0,
-                        }),
-                        Color::WHITE,
-                    );
-                } else if neighbor.y == cell.c.y && neighbor.x > cell.c.x {
-                    mesh.fill(
-                        Shape::Rectangle(Rectangle {
-                            x: (cell.c.x * 20) as f32,
-                            y: (cell.c.y * 20) as f32,
-                            width: 30.0,
-                            height: 10.0,
-                        }),
-                        Color::WHITE,
-                    );
-                }
-            }
+            cell.draw(&mut mesh);
         }
         mesh.draw(&mut frame.as_target());
     }
