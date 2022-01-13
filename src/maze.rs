@@ -28,15 +28,15 @@ impl Maze {
         let mut rng = rand::thread_rng();
         while !self.unconnected.is_empty() {
             // generate a random number
-            let nbr = rng.gen_range(0..(self.connected.len()));
+            let index = rng.gen_range(0..(self.connected.len()));
             // add adjacent cells to the list of candidates
-            self.connected[nbr].add_candidates(&mut self.candidates);
+            self.connected[index].add_candidates(&mut self.candidates);
             // chose a candidate
-            let chosen = self.connected[nbr].chose_candidate(&mut self.candidates);
+            let chosen = self.connected[index].chose_candidate(&mut self.candidates);
             // add candidate if it could be removed from the unconnected list
             if self.unconnected.remove(&chosen).is_some() {
                 self.connected.push(Cell::new(chosen));
-                self.connected[nbr].push_neighbor(chosen);
+                self.connected[index].push_neighbor(chosen);
             }
         }
         self.connected.clone()
