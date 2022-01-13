@@ -125,7 +125,7 @@ impl Maze {
 fn main() -> coffee::Result<()> {
     Mazehem::run(WindowSettings {
         title: String::from("Mazehem"),
-        size: (1280, 1024),
+        size: (590, 590),
         resizable: false,
         fullscreen: false,
         maximized: false,
@@ -141,7 +141,7 @@ impl Game for Mazehem {
     type LoadingScreen = ();
 
     fn load(_window: &Window) -> Task<Mazehem> {
-        let mut maze = Maze::new(20, 20);
+        let mut maze = Maze::new(30, 30);
         let cells = maze.generate();
         Task::succeed(|| Mazehem { cells })
     }
