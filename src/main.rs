@@ -24,7 +24,7 @@ impl PartialEq for Coord {
 
 #[derive(Clone)]
 pub struct Cell {
-    pub cmptd: bool,
+    pub computed: bool,
     pub c: Coord,
     pub n: Vec<Coord>,
 }
@@ -32,7 +32,7 @@ pub struct Cell {
 impl Cell {
     fn new(c: Coord) -> Cell {
         Cell {
-            cmptd: false,
+            computed: false,
             c,
             n: Vec::new(),
         }
@@ -47,16 +47,18 @@ impl Cell {
     }
     fn add_candidates(&mut self, candidates: &mut HashMap<Coord, Coord>) {
         let basic = self.get_basic_neighbors();
+
         for coord in basic {
             if coord != self.c && !candidates.contains_key(&coord) {
                 candidates.insert(coord, coord);
             }
         }
-        self.cmptd = true;
+        self.computed = true;
     }
     fn find_neighbors(&mut self, candidates: &HashMap<Coord, Coord>) -> Vec<Coord> {
         let basic = self.get_basic_neighbors();
         let mut neighbors = Vec::new();
+
         for n in basic {
             if let Some(c) = candidates.get(&n) {
                 neighbors.push(c.clone());
@@ -67,6 +69,7 @@ impl Cell {
     fn chose_candidate(&mut self, candidates: &mut HashMap<Coord, Coord>) -> Coord {
         let neighbors = self.find_neighbors(candidates);
         let nbr = rand::thread_rng().gen_range(0..neighbors.len());
+
         candidates.remove(&neighbors[nbr]);
         neighbors[nbr]
     }
@@ -89,8 +92,6 @@ pub struct Maze {
     unconnected: HashMap<Coord, Coord>,
     candidates: HashMap<Coord, Coord>,
     connected: Vec<Cell>,
-    width: usize,
-    height: usize,
 }
 
 impl Maze {
@@ -99,25 +100,22 @@ impl Maze {
             candidates: HashMap::new(),
             unconnected: init(width, height),
             connected: vec![Cell::new(Coord::new(width / 2, height / 2))],
-            width,
-            height,
         }
     }
     fn generate(&mut self) -> Vec<Cell> {
-        self.unconnected
-            .remove(&Coord::new(self.width / 2, self.height / 2));
         let mut rng = rand::thread_rng();
+
         while !self.unconnected.is_empty() {
             // generate a random number
             let nbr = rng.gen_range(0..(self.connected.len()));
             // add adjacent cells to the list of candidates
             self.connected[nbr].add_candidates(&mut self.candidates);
             // chose a candidate
-            let cand = self.connected[nbr].chose_candidate(&mut self.candidates);
+            let chosen = self.connected[nbr].chose_candidate(&mut self.candidates);
             // add candidate if it could be removed from the unconnected list
-            if let Some(_) = self.unconnected.remove(&cand) {
-                self.connected.push(Cell::new(cand.clone()));
-                self.connected[nbr].push_neighbor(cand);
+            if let Some(_) = self.unconnected.remove(&chosen) {
+                self.connected.push(Cell::new(chosen.clone()));
+                self.connected[nbr].push_neighbor(chosen);
             }
         }
         self.connected.clone()
@@ -130,7 +128,7 @@ fn main() -> coffee::Result<()> {
         size: (1280, 1024),
         resizable: false,
         fullscreen: false,
-        maximized: true,
+        maximized: false,
     })
 }
 
@@ -149,7 +147,7 @@ impl Game for Mazehem {
     }
 
     fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
-        frame.clear(Color::WHITE);
+        frame.clear(Color::BLACK);
         let mut mesh = Mesh::new();
         for cell in &self.cells {
             for neighbor in &cell.n {
@@ -161,17 +159,17 @@ impl Game for Mazehem {
                             width: 10.0,
                             height: 30.0,
                         }),
-                        Color::BLACK,
+                        Color::WHITE,
                     );
                 } else if neighbor.x == cell.c.x && neighbor.y > cell.c.y {
                     mesh.fill(
                         Shape::Rectangle(Rectangle {
                             x: (cell.c.x * 20) as f32,
-                            y: (cell.c.y * 20 + 20) as f32,
+                            y: (cell.c.y * 20) as f32,
                             width: 10.0,
                             height: 30.0,
                         }),
-                        Color::RED,
+                        Color::WHITE,
                     );
                 } else if neighbor.y == cell.c.y && neighbor.x < cell.c.x {
                     mesh.fill(
@@ -181,20 +179,18 @@ impl Game for Mazehem {
                             width: 30.0,
                             height: 10.0,
                         }),
-                        Color::BLACK,
+                        Color::WHITE,
                     );
                 } else if neighbor.y == cell.c.y && neighbor.x > cell.c.x {
                     mesh.fill(
                         Shape::Rectangle(Rectangle {
-                            x: (cell.c.x * 20 + 20) as f32,
+                            x: (cell.c.x * 20) as f32,
                             y: (cell.c.y * 20) as f32,
                             width: 30.0,
                             height: 10.0,
                         }),
-                        Color::BLACK,
+                        Color::WHITE,
                     );
-                } else {
-                    println!("HELLO");
                 }
             }
         }
