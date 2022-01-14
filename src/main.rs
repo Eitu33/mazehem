@@ -34,28 +34,28 @@ struct Mazehem {
 
 impl Mazehem {
     fn move_player(&mut self) {
-        if let Some(a) = self.last_key {
-            println!("{:#?}", a);
-        }
+        // if let Some(a) = self.last_key {
+        //     println!("{:#?}", a);
+        // }
         match self.last_key {
             Some(KeyCode::Right) => {
-                println!("pos: {}", self.player_pos);
-                for a in &self
-                    .cells
-                    .get(&Coord::new(self.player_pos.x, self.player_pos.y))
-                    .unwrap()
-                    .n
-                {
-                    println!("CURRENT N: {}", a);
-                }
-                for a in &self
-                    .cells
-                    .get(&Coord::new(self.player_pos.x + 1, self.player_pos.y))
-                    .unwrap()
-                    .n
-                {
-                    println!("NEXT N: {}", a);
-                }
+                // println!("pos: {}", self.player_pos);
+                // for a in &self
+                //     .cells
+                //     .get(&Coord::new(self.player_pos.x, self.player_pos.y))
+                //     .unwrap()
+                //     .n
+                // {
+                //     println!("CURRENT N: {}", a);
+                // }
+                // for a in &self
+                //     .cells
+                //     .get(&Coord::new(self.player_pos.x + 1, self.player_pos.y))
+                //     .unwrap()
+                //     .n
+                // {
+                //     println!("NEXT N: {}", a);
+                // }
                 if self
                     .cells
                     .get(&Coord::new(self.player_pos.x, self.player_pos.y))
@@ -63,7 +63,6 @@ impl Mazehem {
                     .n
                     .contains(&Coord::new(self.player_pos.x + 1, self.player_pos.y))
                 {
-                    println!("HEY A");
                     self.player_pos.x += 1
                 } else if self
                     .cells
@@ -72,11 +71,28 @@ impl Mazehem {
                     .n
                     .contains(&Coord::new(self.player_pos.x, self.player_pos.y))
                 {
-                    println!("HEY B");
                     self.player_pos.x += 1
                 }
             }
-            Some(KeyCode::Down) => self.player_pos.y += 1,
+            Some(KeyCode::Down) => {
+                if self
+                    .cells
+                    .get(&Coord::new(self.player_pos.x, self.player_pos.y))
+                    .unwrap()
+                    .n
+                    .contains(&Coord::new(self.player_pos.x, self.player_pos.y + 1))
+                {
+                    self.player_pos.y += 1
+                } else if self
+                    .cells
+                    .get(&Coord::new(self.player_pos.x, self.player_pos.y + 1))
+                    .unwrap()
+                    .n
+                    .contains(&Coord::new(self.player_pos.x, self.player_pos.y))
+                {
+                    self.player_pos.y += 1
+                }
+            }
             Some(KeyCode::Left) => self.player_pos.x -= 1,
             Some(KeyCode::Up) => self.player_pos.y -= 1,
             _ => (),
@@ -128,8 +144,8 @@ impl Game for Mazehem {
         self.move_player();
         mesh.fill(
             Shape::Rectangle(Rectangle {
-                x: (self.player_pos.x * 10) as f32,
-                y: (self.player_pos.y * 10) as f32,
+                x: (self.player_pos.x * 20) as f32,
+                y: (self.player_pos.y * 20) as f32,
                 width: 10.0,
                 height: 10.0,
             }),
