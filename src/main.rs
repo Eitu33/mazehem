@@ -1,5 +1,6 @@
 mod cell;
 mod coord;
+mod drawable;
 mod maze;
 
 use cell::Cell;
@@ -11,6 +12,7 @@ use coffee::input::{self, keyboard, Input};
 use coffee::load::Task;
 use coffee::{Game, Timer};
 use coord::Coord;
+use drawable::Drawable;
 use maze::Maze;
 
 fn main() -> coffee::Result<()> {

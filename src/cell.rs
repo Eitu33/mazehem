@@ -1,4 +1,5 @@
 use crate::coord::Coord;
+use crate::drawable::Drawable;
 use coffee::graphics::{Color, Mesh, Rectangle, Shape};
 use rand::Rng;
 use std::collections::HashMap;
@@ -59,8 +60,10 @@ impl Cell {
     pub fn push_neighbor(&mut self, coord: Coord) {
         self.n.push(coord);
     }
+}
 
-    pub fn draw(&self, mesh: &mut Mesh) {
+impl Drawable for Cell {
+    fn draw(&self, mesh: &mut Mesh) {
         let mut width: f32;
         let mut height: f32;
         let mut a: usize;
