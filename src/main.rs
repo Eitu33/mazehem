@@ -13,6 +13,7 @@ use coffee::load::Task;
 use coffee::{Game, Timer};
 use coord::Coord;
 use drawable::Drawable;
+use indexmap::IndexMap;
 use maze::Maze;
 
 fn main() -> coffee::Result<()> {
@@ -26,53 +27,56 @@ fn main() -> coffee::Result<()> {
 }
 
 struct Mazehem {
-    cells: Vec<Cell>,
+    cells: IndexMap<Coord, Cell>,
     last_key: Option<KeyCode>,
     player_pos: Coord,
 }
 
 impl Mazehem {
     fn move_player(&mut self) {
-        // if let Some(a) = self.last_key {
-        //     println!("{:#?}", a);
-        // }
+        if let Some(a) = self.last_key {
+            println!("{:#?}", a);
+        }
         match self.last_key {
             Some(KeyCode::Right) => {
-                if let Some(index) = self
+                println!("pos: {}", self.player_pos);
+                for a in &self
                     .cells
-                    .iter()
-                    .position(|x| x.c == Coord::new(self.player_pos.x, self.player_pos.y))
+                    .get(&Coord::new(self.player_pos.x, self.player_pos.y))
+                    .unwrap()
+                    .n
                 {
-                    // take it back here: no neighbor
-                    println!("pos: {}", self.player_pos);
-                    for a in &self.cells[index].n {
-                        println!("n: {}", a);
-                    }
-                    if self.cells[index]
-                        .n
-                        .contains(&Coord::new(self.player_pos.x + 1, self.player_pos.y))
-                    {
-                        println!("HELLO 1");
-                        self.player_pos.x += 1
-                    }
+                    println!("CURRENT N: {}", a);
+                }
+                for a in &self
+                    .cells
+                    .get(&Coord::new(self.player_pos.x + 1, self.player_pos.y))
+                    .unwrap()
+                    .n
+                {
+                    println!("NEXT N: {}", a);
+                }
+                if self
+                    .cells
+                    .get(&Coord::new(self.player_pos.x, self.player_pos.y))
+                    .unwrap()
+                    .n
+                    .contains(&Coord::new(self.player_pos.x + 1, self.player_pos.y))
+                {
+                    println!("HEY A");
+                    self.player_pos.x += 1
+                } else if self
+                    .cells
+                    .get(&Coord::new(self.player_pos.x + 1, self.player_pos.y))
+                    .unwrap()
+                    .n
+                    .contains(&Coord::new(self.player_pos.x, self.player_pos.y))
+                {
+                    println!("HEY B");
+                    self.player_pos.x += 1
                 }
             }
-            Some(KeyCode::Down) => {
-                if let Some(index) = self
-                    .cells
-                    .iter()
-                    .position(|x| x.c == Coord::new(self.player_pos.x, self.player_pos.y))
-                {
-                    println!("{}", self.player_pos);
-                    if self.cells[index]
-                        .n
-                        .contains(&Coord::new(self.player_pos.x, self.player_pos.y + 1))
-                    {
-                        println!("HELLO 2");
-                        self.player_pos.y += 1
-                    }
-                }
-            }
+            Some(KeyCode::Down) => self.player_pos.y += 1,
             Some(KeyCode::Left) => self.player_pos.x -= 1,
             Some(KeyCode::Up) => self.player_pos.y -= 1,
             _ => (),
@@ -119,7 +123,7 @@ impl Game for Mazehem {
         let mut mesh = Mesh::new();
         frame.clear(Color::BLACK);
         for cell in &self.cells {
-            cell.draw(&mut mesh);
+            cell.1.draw(&mut mesh);
         }
         self.move_player();
         mesh.fill(
