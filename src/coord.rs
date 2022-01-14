@@ -17,4 +17,3 @@ impl fmt::Display for Coord {
         write!(f, "({}, {})", self.x, self.y)
     }
 }
-
