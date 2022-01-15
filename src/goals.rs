@@ -3,7 +3,7 @@ use crate::drawable::Drawable;
 use coffee::graphics::{Color, Mesh, Rectangle, Shape};
 
 pub struct Goals {
-    goals: Vec<Coord>,
+    pub goals: Vec<Coord>,
 }
 
 impl Goals {
