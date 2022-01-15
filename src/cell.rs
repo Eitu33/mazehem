@@ -1,8 +1,6 @@
 use crate::coord::Coord;
 use crate::drawable::Drawable;
 use coffee::graphics::{Color, Mesh, Rectangle, Shape};
-use rand::Rng;
-use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct Cell {
@@ -20,41 +18,13 @@ impl Cell {
         }
     }
 
-    fn get_basic_neighbors(&mut self) -> Vec<Coord> {
+    pub fn get_basic_neighbors(&self) -> Vec<Coord> {
         vec![
             Coord::new(self.c.x.saturating_sub(1), self.c.y),
             Coord::new(self.c.x.saturating_add(1), self.c.y),
             Coord::new(self.c.x, self.c.y.saturating_sub(1)),
             Coord::new(self.c.x, self.c.y.saturating_add(1)),
         ]
-    }
-
-    pub fn add_candidates(&mut self, candidates: &mut HashMap<Coord, ()>) {
-        let basic = self.get_basic_neighbors();
-        for coord in basic {
-            if coord != self.c && !candidates.contains_key(&coord) {
-                candidates.insert(coord, ());
-            }
-        }
-        self.computed = true;
-    }
-
-    pub fn find_neighbors(&mut self, candidates: &HashMap<Coord, ()>) -> Vec<Coord> {
-        let basic = self.get_basic_neighbors();
-        let mut neighbors = Vec::new();
-        for coord in basic {
-            if candidates.contains_key(&coord) {
-                neighbors.push(coord);
-            }
-        }
-        neighbors
-    }
-
-    pub fn chose_candidate(&mut self, candidates: &mut HashMap<Coord, ()>) -> Coord {
-        let neighbors = self.find_neighbors(candidates);
-        let index = rand::thread_rng().gen_range(0..neighbors.len());
-        candidates.remove(&neighbors[index]);
-        neighbors[index]
     }
 
     pub fn push_neighbor(&mut self, coord: Coord) {

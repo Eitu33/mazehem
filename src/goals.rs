@@ -8,9 +8,7 @@ pub struct Goals {
 
 impl Goals {
     pub fn new(goals: Vec<Coord>) -> Goals {
-        Goals {
-            goals,
-        }
+        Goals { goals }
     }
 }
 
