@@ -35,68 +35,33 @@ struct Mazehem {
 }
 
 impl Mazehem {
+    fn move_allowed(&self, to: &Coord) -> bool {
+        self.cells.get(&self.player.c).unwrap().n.contains(to)
+            || self.cells.get(to).unwrap().n.contains(&self.player.c)
+    }
+
     fn move_player(&mut self) {
-        // if let Some(a) = self.last_key {
-        //     println!("{:#?}", a);
-        // }
         match self.last_key {
             Some(KeyCode::Right) => {
-                // println!("pos: {}", self.player.c);
-                // for a in &self
-                //     .cells
-                //     .get(&Coord::new(self.player.c.x, self.player.c.y))
-                //     .unwrap()
-                //     .n
-                // {
-                //     println!("CURRENT N: {}", a);
-                // }
-                // for a in &self
-                //     .cells
-                //     .get(&Coord::new(self.player.c.x + 1, self.player.c.y))
-                //     .unwrap()
-                //     .n
-                // {
-                //     println!("NEXT N: {}", a);
-                // }
-                if self
-                    .cells
-                    .get(&Coord::new(self.player.c.x, self.player.c.y))
-                    .unwrap()
-                    .n
-                    .contains(&Coord::new(self.player.c.x + 1, self.player.c.y))
-                {
-                    self.player.c.x += 1
-                } else if self
-                    .cells
-                    .get(&Coord::new(self.player.c.x + 1, self.player.c.y))
-                    .unwrap()
-                    .n
-                    .contains(&Coord::new(self.player.c.x, self.player.c.y))
-                {
-                    self.player.c.x += 1
+                if self.move_allowed(&Coord::new(self.player.c.x + 1, self.player.c.y)) {
+                    self.player.c.x += 1;
                 }
             }
             Some(KeyCode::Down) => {
-                if self
-                    .cells
-                    .get(&Coord::new(self.player.c.x, self.player.c.y))
-                    .unwrap()
-                    .n
-                    .contains(&Coord::new(self.player.c.x, self.player.c.y + 1))
-                {
-                    self.player.c.y += 1
-                } else if self
-                    .cells
-                    .get(&Coord::new(self.player.c.x, self.player.c.y + 1))
-                    .unwrap()
-                    .n
-                    .contains(&Coord::new(self.player.c.x, self.player.c.y))
-                {
-                    self.player.c.y += 1
+                if self.move_allowed(&Coord::new(self.player.c.x, self.player.c.y + 1)) {
+                    self.player.c.y += 1;
                 }
             }
-            Some(KeyCode::Left) => self.player.c.x -= 1,
-            Some(KeyCode::Up) => self.player.c.y -= 1,
+            Some(KeyCode::Left) => {
+                if self.move_allowed(&Coord::new(self.player.c.x - 1, self.player.c.y)) {
+                    self.player.c.x -= 1;
+                }
+            }
+            Some(KeyCode::Up) => {
+                if self.move_allowed(&Coord::new(self.player.c.x, self.player.c.y - 1)) {
+                    self.player.c.y -= 1;
+                }
+            }
             _ => (),
         }
     }
