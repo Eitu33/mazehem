@@ -5,7 +5,7 @@ mod maze;
 mod player;
 
 use cell::Cell;
-use coffee::graphics::{Color, Font, Frame, Mesh, Text, Window, WindowSettings};
+use coffee::graphics::{Color, Font, Frame, Mesh, Rectangle, Shape, Text, Window, WindowSettings};
 use coffee::input::keyboard::KeyCode;
 use coffee::input::{self, keyboard, Input};
 use coffee::load::Task;
@@ -30,6 +30,7 @@ struct Mazehem {
     cells: IndexMap<Coord, Cell>,
     last_key: Option<KeyCode>,
     player: Player,
+    goal_coord: Coord,
 }
 
 impl Mazehem {
@@ -40,37 +41,41 @@ impl Mazehem {
 
     fn move_player(&mut self) {
         match self.last_key {
-            Some(KeyCode::Right) => {
+            Some(KeyCode::Right)
                 if self.move_allowed(&Coord::new(
                     self.player.c.x.saturating_add(1),
                     self.player.c.y,
-                )) {
-                    self.player.c.x += 1;
-                }
+                )) =>
+            {
+                self.player.c.x += 1;
+                self.last_key = None;
             }
-            Some(KeyCode::Down) => {
+            Some(KeyCode::Down)
                 if self.move_allowed(&Coord::new(
                     self.player.c.x,
                     self.player.c.y.saturating_add(1),
-                )) {
-                    self.player.c.y += 1;
-                }
+                )) =>
+            {
+                self.player.c.y += 1;
+                self.last_key = None;
             }
-            Some(KeyCode::Left) => {
+            Some(KeyCode::Left)
                 if self.move_allowed(&Coord::new(
                     self.player.c.x.saturating_sub(1),
                     self.player.c.y,
-                )) {
-                    self.player.c.x -= 1;
-                }
+                )) =>
+            {
+                self.player.c.x -= 1;
+                self.last_key = None;
             }
-            Some(KeyCode::Up) => {
+            Some(KeyCode::Up)
                 if self.move_allowed(&Coord::new(
                     self.player.c.x,
                     self.player.c.y.saturating_sub(1),
-                )) {
-                    self.player.c.y -= 1;
-                }
+                )) =>
+            {
+                self.player.c.y -= 1;
+                self.last_key = None;
             }
             _ => (),
         }
@@ -88,6 +93,7 @@ impl Game for Mazehem {
             cells,
             last_key: None,
             player: Player::new(Color::RED, Coord::new(0, 0)),
+            goal_coord: Coord::new(30, 30),
         })
     }
 

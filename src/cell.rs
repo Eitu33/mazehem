@@ -64,15 +64,11 @@ impl Cell {
 
 impl Drawable for Cell {
     fn draw(&self, mesh: &mut Mesh) {
-        let mut width: f32;
-        let mut height: f32;
-        let mut a: usize;
-        let mut b: usize;
         for neighbor in &self.n {
-            width = 10.0;
-            height = 10.0;
-            a = 0;
-            b = 0;
+            let mut width = 10.0;
+            let mut height = 10.0;
+            let mut a = 0;
+            let mut b = 0;
             if neighbor.y == self.c.y && neighbor.x < self.c.x {
                 width = 30.0;
                 a = 20;
