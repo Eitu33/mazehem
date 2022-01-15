@@ -10,6 +10,10 @@ impl Coord {
     pub fn new(x: usize, y: usize) -> Coord {
         Coord { x, y }
     }
+
+    pub fn out_of_bounds(&self, x: usize, y: usize) -> bool {
+        self.x >= x || self.y >= y
+    }
 }
 
 impl fmt::Display for Coord {

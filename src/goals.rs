@@ -7,9 +7,9 @@ pub struct Goals {
 }
 
 impl Goals {
-    pub fn new() -> Goals {
+    pub fn new(goals: Vec<Coord>) -> Goals {
         Goals {
-            goals: vec![Coord::new(29, 29)],
+            goals,
         }
     }
 }

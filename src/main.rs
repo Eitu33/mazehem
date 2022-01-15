@@ -18,6 +18,9 @@ use indexmap::IndexMap;
 use maze::Maze;
 use player::Player;
 
+const WIDTH: usize = 30;
+const HEIGHT: usize = 30;
+
 fn main() -> coffee::Result<()> {
     Mazehem::run(WindowSettings {
         title: String::from("Mazehem"),
@@ -37,8 +40,12 @@ struct Mazehem {
 
 impl Mazehem {
     fn move_allowed(&self, to: &Coord) -> bool {
-        self.cells.get(&self.player.c).unwrap().n.contains(to)
-            || self.cells.get(to).unwrap().n.contains(&self.player.c)
+        if !to.out_of_bounds(WIDTH, HEIGHT) {
+            self.cells.get(&self.player.c).unwrap().n.contains(to)
+                || self.cells.get(to).unwrap().n.contains(&self.player.c)
+        } else {
+            false
+        }
     }
 
     fn move_player(&mut self) {
@@ -89,13 +96,13 @@ impl Game for Mazehem {
     type LoadingScreen = ();
 
     fn load(_window: &Window) -> Task<Mazehem> {
-        let mut maze = Maze::new(30, 30);
+        let mut maze = Maze::new(WIDTH, HEIGHT);
         let cells = maze.generate();
         Task::succeed(|| Mazehem {
             cells,
             last_key: None,
             player: Player::new(Color::RED, Coord::new(0, 0)),
-            goals: Goals::new(),
+            goals: Goals::new(vec![Coord::new(WIDTH - 1, HEIGHT - 1)]),
         })
     }
 
