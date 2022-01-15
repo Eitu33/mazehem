@@ -28,8 +28,8 @@ impl Maze {
 
     fn list_candidates(&mut self, index: usize) -> Vec<Coord> {
         let mut candidates: Vec<Coord> = Vec::new();
-        let basic = self.connected[index].get_basic_neighbors();
-        for coord in basic {
+        let coords = self.connected[index].get_adjacent_coords();
+        for coord in coords {
             if coord != self.connected[index].coord {
                 candidates.push(coord);
             }

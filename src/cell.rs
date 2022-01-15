@@ -16,7 +16,7 @@ impl Cell {
         }
     }
 
-    pub fn get_basic_neighbors(&self) -> Vec<Coord> {
+    pub fn get_adjacent_coords(&self) -> Vec<Coord> {
         vec![
             Coord::new(self.coord.x.saturating_sub(1), self.coord.y),
             Coord::new(self.coord.x.saturating_add(1), self.coord.y),
