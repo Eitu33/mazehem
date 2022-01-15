@@ -41,8 +41,8 @@ struct Mazehem {
 impl Mazehem {
     fn move_allowed(&self, to: &Coord) -> bool {
         if !to.out_of_bounds(WIDTH, HEIGHT) {
-            self.cells.get(&self.player.c).unwrap().n.contains(to)
-                || self.cells.get(to).unwrap().n.contains(&self.player.c)
+            self.cells.get(&self.player.coord).unwrap().n.contains(to)
+                || self.cells.get(to).unwrap().n.contains(&self.player.coord)
         } else {
             false
         }
@@ -52,38 +52,38 @@ impl Mazehem {
         match self.last_key {
             Some(KeyCode::Right)
                 if self.move_allowed(&Coord::new(
-                    self.player.c.x.saturating_add(1),
-                    self.player.c.y,
+                    self.player.coord.x.saturating_add(1),
+                    self.player.coord.y,
                 )) =>
             {
-                self.player.c.x += 1;
+                self.player.coord.x += 1;
                 self.last_key = None;
             }
             Some(KeyCode::Down)
                 if self.move_allowed(&Coord::new(
-                    self.player.c.x,
-                    self.player.c.y.saturating_add(1),
+                    self.player.coord.x,
+                    self.player.coord.y.saturating_add(1),
                 )) =>
             {
-                self.player.c.y += 1;
+                self.player.coord.y += 1;
                 self.last_key = None;
             }
             Some(KeyCode::Left)
                 if self.move_allowed(&Coord::new(
-                    self.player.c.x.saturating_sub(1),
-                    self.player.c.y,
+                    self.player.coord.x.saturating_sub(1),
+                    self.player.coord.y,
                 )) =>
             {
-                self.player.c.x -= 1;
+                self.player.coord.x -= 1;
                 self.last_key = None;
             }
             Some(KeyCode::Up)
                 if self.move_allowed(&Coord::new(
-                    self.player.c.x,
-                    self.player.c.y.saturating_sub(1),
+                    self.player.coord.x,
+                    self.player.coord.y.saturating_sub(1),
                 )) =>
             {
-                self.player.c.y -= 1;
+                self.player.coord.y -= 1;
                 self.last_key = None;
             }
             _ => (),

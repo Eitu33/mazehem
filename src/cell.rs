@@ -4,26 +4,24 @@ use coffee::graphics::{Color, Mesh, Rectangle, Shape};
 
 #[derive(Clone)]
 pub struct Cell {
-    pub computed: bool,
-    pub c: Coord,
+    pub coord: Coord,
     pub n: Vec<Coord>,
 }
 
 impl Cell {
-    pub fn new(c: Coord) -> Cell {
+    pub fn new(coord: Coord) -> Cell {
         Cell {
-            computed: false,
-            c,
+            coord,
             n: Vec::new(),
         }
     }
 
     pub fn get_basic_neighbors(&self) -> Vec<Coord> {
         vec![
-            Coord::new(self.c.x.saturating_sub(1), self.c.y),
-            Coord::new(self.c.x.saturating_add(1), self.c.y),
-            Coord::new(self.c.x, self.c.y.saturating_sub(1)),
-            Coord::new(self.c.x, self.c.y.saturating_add(1)),
+            Coord::new(self.coord.x.saturating_sub(1), self.coord.y),
+            Coord::new(self.coord.x.saturating_add(1), self.coord.y),
+            Coord::new(self.coord.x, self.coord.y.saturating_sub(1)),
+            Coord::new(self.coord.x, self.coord.y.saturating_add(1)),
         ]
     }
 
@@ -39,21 +37,21 @@ impl Drawable for Cell {
             let mut height = 10.0;
             let mut a = 0;
             let mut b = 0;
-            if neighbor.y == self.c.y && neighbor.x < self.c.x {
+            if neighbor.x < self.coord.x {
                 width = 30.0;
                 a = 20;
-            } else if neighbor.y == self.c.y && neighbor.x > self.c.x {
+            } else if neighbor.x > self.coord.x {
                 width = 30.0;
-            } else if neighbor.x == self.c.x && neighbor.y < self.c.y {
+            } else if neighbor.y < self.coord.y {
                 height = 30.0;
                 b = 20;
-            } else if neighbor.x == self.c.x && neighbor.y > self.c.y {
+            } else if neighbor.y > self.coord.y {
                 height = 30.0;
             }
             mesh.fill(
                 Shape::Rectangle(Rectangle {
-                    x: (self.c.x * 20 - a) as f32,
-                    y: (self.c.y * 20 - b) as f32,
+                    x: (self.coord.x * 20 - a) as f32,
+                    y: (self.coord.y * 20 - b) as f32,
                     width,
                     height,
                 }),

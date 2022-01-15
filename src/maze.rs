@@ -30,7 +30,7 @@ impl Maze {
         let mut candidates: Vec<Coord> = Vec::new();
         let basic = self.connected[index].get_basic_neighbors();
         for coord in basic {
-            if coord != self.connected[index].c {
+            if coord != self.connected[index].coord {
                 candidates.push(coord);
             }
         }
@@ -39,8 +39,7 @@ impl Maze {
 
     fn chose_candidate(&mut self, index: usize) -> Coord {
         let neighbors = self.list_candidates(index);
-        let i = rand::thread_rng().gen_range(0..neighbors.len());
-        neighbors[i]
+        neighbors[rand::thread_rng().gen_range(0..neighbors.len())]
     }
 
     pub fn generate(&mut self) -> IndexMap<Coord, Cell> {
