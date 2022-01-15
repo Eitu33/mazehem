@@ -2,11 +2,11 @@ use crate::cell::Cell;
 use crate::coord::Coord;
 use crate::drawable::Drawable;
 use crate::goals::Goals;
+use crate::input::CustomInput;
 use crate::maze::Maze;
 use crate::player::Player;
 use coffee::graphics::{Color, Frame, Mesh, Window};
 use coffee::input::keyboard::KeyCode;
-use coffee::input::{self, keyboard, Input};
 use coffee::load::Task;
 use coffee::{Game, Timer};
 use indexmap::IndexMap;
@@ -127,36 +127,5 @@ impl Drawable for IndexMap<Coord, Cell> {
         for cell in self {
             cell.1.draw(mesh);
         }
-    }
-}
-
-pub struct CustomInput {
-    keys_pressed: Vec<KeyCode>,
-}
-
-impl Input for CustomInput {
-    fn new() -> CustomInput {
-        CustomInput {
-            keys_pressed: Vec::new(),
-        }
-    }
-
-    fn update(&mut self, event: input::Event) {
-        match event {
-            input::Event::Keyboard(keyboard_event) => match keyboard_event {
-                keyboard::Event::Input { key_code, state } => match state {
-                    input::ButtonState::Pressed => {
-                        self.keys_pressed.push(key_code);
-                    }
-                    _ => (),
-                },
-                _ => (),
-            },
-            _ => (),
-        }
-    }
-
-    fn clear(&mut self) {
-        self.keys_pressed.clear();
     }
 }

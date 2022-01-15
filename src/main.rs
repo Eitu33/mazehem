@@ -3,6 +3,7 @@ mod coord;
 mod drawable;
 mod game;
 mod goals;
+mod input;
 mod maze;
 mod player;
 
