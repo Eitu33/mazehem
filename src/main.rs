@@ -5,9 +5,7 @@ mod maze;
 mod player;
 
 use cell::Cell;
-use coffee::graphics::{
-    Color, Font, Frame, Mesh, Point, Rectangle, Shape, Text, Window, WindowSettings,
-};
+use coffee::graphics::{Color, Font, Frame, Mesh, Text, Window, WindowSettings};
 use coffee::input::keyboard::KeyCode;
 use coffee::input::{self, keyboard, Input};
 use coffee::load::Task;
@@ -43,22 +41,34 @@ impl Mazehem {
     fn move_player(&mut self) {
         match self.last_key {
             Some(KeyCode::Right) => {
-                if self.move_allowed(&Coord::new(self.player.c.x + 1, self.player.c.y)) {
+                if self.move_allowed(&Coord::new(
+                    self.player.c.x.saturating_add(1),
+                    self.player.c.y,
+                )) {
                     self.player.c.x += 1;
                 }
             }
             Some(KeyCode::Down) => {
-                if self.move_allowed(&Coord::new(self.player.c.x, self.player.c.y + 1)) {
+                if self.move_allowed(&Coord::new(
+                    self.player.c.x,
+                    self.player.c.y.saturating_add(1),
+                )) {
                     self.player.c.y += 1;
                 }
             }
             Some(KeyCode::Left) => {
-                if self.move_allowed(&Coord::new(self.player.c.x - 1, self.player.c.y)) {
+                if self.move_allowed(&Coord::new(
+                    self.player.c.x.saturating_sub(1),
+                    self.player.c.y,
+                )) {
                     self.player.c.x -= 1;
                 }
             }
             Some(KeyCode::Up) => {
-                if self.move_allowed(&Coord::new(self.player.c.x, self.player.c.y - 1)) {
+                if self.move_allowed(&Coord::new(
+                    self.player.c.x,
+                    self.player.c.y.saturating_sub(1),
+                )) {
                     self.player.c.y -= 1;
                 }
             }
