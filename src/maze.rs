@@ -6,7 +6,6 @@ use std::collections::HashMap;
 
 pub struct Maze {
     unconnected: HashMap<Coord, ()>,
-    candidates: HashMap<Coord, ()>,
     connected: IndexMap<Coord, Cell>,
 }
 
@@ -22,37 +21,25 @@ impl Maze {
             }
         }
         Maze {
-            candidates: HashMap::new(),
             unconnected,
             connected,
         }
     }
 
-    fn save_candidates(&mut self, index: usize) {
+    fn list_candidates(&mut self, index: usize) -> Vec<Coord> {
+        let mut candidates: Vec<Coord> = Vec::new();
         let basic = self.connected[index].get_basic_neighbors();
         for coord in basic {
-            if coord != self.connected[index].c && !self.candidates.contains_key(&coord) {
-                self.candidates.insert(coord, ());
+            if coord != self.connected[index].c {
+                candidates.push(coord);
             }
         }
-        self.connected[index].computed = true;
-    }
-
-    fn list_adjacent_candidates(&self, index: usize) -> Vec<Coord> {
-        let basic = self.connected[index].get_basic_neighbors();
-        let mut neighbors = Vec::new();
-        for coord in basic {
-            if self.candidates.contains_key(&coord) {
-                neighbors.push(coord);
-            }
-        }
-        neighbors
+        candidates
     }
 
     fn chose_candidate(&mut self, index: usize) -> Coord {
-        let neighbors = self.list_adjacent_candidates(index);
+        let neighbors = self.list_candidates(index);
         let i = rand::thread_rng().gen_range(0..neighbors.len());
-        self.candidates.remove(&neighbors[i]);
         neighbors[i]
     }
 
@@ -61,8 +48,6 @@ impl Maze {
         while !self.unconnected.is_empty() {
             // generate a random number
             let index = rng.gen_range(0..(self.connected.len()));
-            // add adjacent cells to the list of candidates
-            self.save_candidates(index);
             // chose a candidate
             let chosen = self.chose_candidate(index);
             // add candidate if it could be removed from the unconnected list
