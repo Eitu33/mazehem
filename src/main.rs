@@ -1,17 +1,19 @@
 mod cell;
 mod coord;
 mod drawable;
+mod goals;
 mod maze;
 mod player;
 
 use cell::Cell;
-use coffee::graphics::{Color, Font, Frame, Mesh, Rectangle, Shape, Text, Window, WindowSettings};
+use coffee::graphics::{Color, Font, Frame, Mesh, Text, Window, WindowSettings};
 use coffee::input::keyboard::KeyCode;
 use coffee::input::{self, keyboard, Input};
 use coffee::load::Task;
 use coffee::{Game, Timer};
 use coord::Coord;
 use drawable::Drawable;
+use goals::Goals;
 use indexmap::IndexMap;
 use maze::Maze;
 use player::Player;
@@ -30,7 +32,7 @@ struct Mazehem {
     cells: IndexMap<Coord, Cell>,
     last_key: Option<KeyCode>,
     player: Player,
-    goal_coord: Coord,
+    goals: Goals,
 }
 
 impl Mazehem {
@@ -93,7 +95,7 @@ impl Game for Mazehem {
             cells,
             last_key: None,
             player: Player::new(Color::RED, Coord::new(0, 0)),
-            goal_coord: Coord::new(30, 30),
+            goals: Goals::new(),
         })
     }
 
@@ -126,6 +128,7 @@ impl Game for Mazehem {
         }
         self.move_player();
         self.player.draw(&mut mesh);
+        self.goals.draw(&mut mesh);
         mesh.draw(&mut frame.as_target());
     }
 }
