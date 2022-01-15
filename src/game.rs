@@ -111,15 +111,22 @@ impl Game for Mazehem {
     }
 
     fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
-        let mut mesh = Mesh::new();
-        frame.clear(Color::BLACK);
-        for cell in &self.cells {
-            cell.1.draw(&mut mesh);
-        }
         self.move_player();
+        frame.clear(Color::BLACK);
+
+        let mut mesh = Mesh::new();
+        self.cells.draw(&mut mesh);
         self.player.draw(&mut mesh);
         self.goals.draw(&mut mesh);
         mesh.draw(&mut frame.as_target());
+    }
+}
+
+impl Drawable for IndexMap<Coord, Cell> {
+    fn draw(&self, mesh: &mut Mesh) {
+        for cell in self {
+            cell.1.draw(mesh);
+        }
     }
 }
 
