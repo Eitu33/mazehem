@@ -2,6 +2,7 @@ mod cell;
 mod coord;
 mod drawable;
 mod maze;
+mod player;
 
 use cell::Cell;
 use coffee::graphics::{
@@ -15,6 +16,7 @@ use coord::Coord;
 use drawable::Drawable;
 use indexmap::IndexMap;
 use maze::Maze;
+use player::Player;
 
 fn main() -> coffee::Result<()> {
     Mazehem::run(WindowSettings {
@@ -29,7 +31,7 @@ fn main() -> coffee::Result<()> {
 struct Mazehem {
     cells: IndexMap<Coord, Cell>,
     last_key: Option<KeyCode>,
-    player_pos: Coord,
+    player: Player,
 }
 
 impl Mazehem {
@@ -39,10 +41,10 @@ impl Mazehem {
         // }
         match self.last_key {
             Some(KeyCode::Right) => {
-                // println!("pos: {}", self.player_pos);
+                // println!("pos: {}", self.player.c);
                 // for a in &self
                 //     .cells
-                //     .get(&Coord::new(self.player_pos.x, self.player_pos.y))
+                //     .get(&Coord::new(self.player.c.x, self.player.c.y))
                 //     .unwrap()
                 //     .n
                 // {
@@ -50,7 +52,7 @@ impl Mazehem {
                 // }
                 // for a in &self
                 //     .cells
-                //     .get(&Coord::new(self.player_pos.x + 1, self.player_pos.y))
+                //     .get(&Coord::new(self.player.c.x + 1, self.player.c.y))
                 //     .unwrap()
                 //     .n
                 // {
@@ -58,43 +60,43 @@ impl Mazehem {
                 // }
                 if self
                     .cells
-                    .get(&Coord::new(self.player_pos.x, self.player_pos.y))
+                    .get(&Coord::new(self.player.c.x, self.player.c.y))
                     .unwrap()
                     .n
-                    .contains(&Coord::new(self.player_pos.x + 1, self.player_pos.y))
+                    .contains(&Coord::new(self.player.c.x + 1, self.player.c.y))
                 {
-                    self.player_pos.x += 1
+                    self.player.c.x += 1
                 } else if self
                     .cells
-                    .get(&Coord::new(self.player_pos.x + 1, self.player_pos.y))
+                    .get(&Coord::new(self.player.c.x + 1, self.player.c.y))
                     .unwrap()
                     .n
-                    .contains(&Coord::new(self.player_pos.x, self.player_pos.y))
+                    .contains(&Coord::new(self.player.c.x, self.player.c.y))
                 {
-                    self.player_pos.x += 1
+                    self.player.c.x += 1
                 }
             }
             Some(KeyCode::Down) => {
                 if self
                     .cells
-                    .get(&Coord::new(self.player_pos.x, self.player_pos.y))
+                    .get(&Coord::new(self.player.c.x, self.player.c.y))
                     .unwrap()
                     .n
-                    .contains(&Coord::new(self.player_pos.x, self.player_pos.y + 1))
+                    .contains(&Coord::new(self.player.c.x, self.player.c.y + 1))
                 {
-                    self.player_pos.y += 1
+                    self.player.c.y += 1
                 } else if self
                     .cells
-                    .get(&Coord::new(self.player_pos.x, self.player_pos.y + 1))
+                    .get(&Coord::new(self.player.c.x, self.player.c.y + 1))
                     .unwrap()
                     .n
-                    .contains(&Coord::new(self.player_pos.x, self.player_pos.y))
+                    .contains(&Coord::new(self.player.c.x, self.player.c.y))
                 {
-                    self.player_pos.y += 1
+                    self.player.c.y += 1
                 }
             }
-            Some(KeyCode::Left) => self.player_pos.x -= 1,
-            Some(KeyCode::Up) => self.player_pos.y -= 1,
+            Some(KeyCode::Left) => self.player.c.x -= 1,
+            Some(KeyCode::Up) => self.player.c.y -= 1,
             _ => (),
         }
     }
@@ -110,7 +112,7 @@ impl Game for Mazehem {
         Task::succeed(|| Mazehem {
             cells,
             last_key: None,
-            player_pos: Coord::new(0, 0),
+            player: Player::new(Color::RED, Coord::new(0, 0)),
         })
     }
 
@@ -142,15 +144,7 @@ impl Game for Mazehem {
             cell.1.draw(&mut mesh);
         }
         self.move_player();
-        mesh.fill(
-            Shape::Rectangle(Rectangle {
-                x: (self.player_pos.x * 20) as f32,
-                y: (self.player_pos.y * 20) as f32,
-                width: 10.0,
-                height: 10.0,
-            }),
-            Color::RED,
-        );
+        self.player.draw(&mut mesh);
         mesh.draw(&mut frame.as_target());
     }
 }
