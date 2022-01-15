@@ -21,6 +21,17 @@ pub struct Mazehem {
     goals: Goals,
 }
 
+impl<T> Drawable for IndexMap<Coord, T>
+where
+    T: Drawable,
+{
+    fn draw(&self, mesh: &mut Mesh) {
+        for cell in self {
+            cell.1.draw(mesh);
+        }
+    }
+}
+
 impl Mazehem {
     fn move_allowed(&self, to: &Coord) -> bool {
         if !to.out_of_bounds(WIDTH, HEIGHT) {
@@ -119,13 +130,5 @@ impl Game for Mazehem {
         self.player.draw(&mut mesh);
         self.goals.draw(&mut mesh);
         mesh.draw(&mut frame.as_target());
-    }
-}
-
-impl Drawable for IndexMap<Coord, Cell> {
-    fn draw(&self, mesh: &mut Mesh) {
-        for cell in self {
-            cell.1.draw(mesh);
-        }
     }
 }
