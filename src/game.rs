@@ -5,11 +5,14 @@ use crate::goals::Goals;
 use crate::input::CustomInput;
 use crate::maze::Maze;
 use crate::player::Player;
+use bincode::{deserialize, serialize};
 use coffee::graphics::{Color, Frame, Mesh, Window};
 use coffee::input::keyboard::KeyCode;
 use coffee::load::Task;
 use coffee::{Game, Timer};
 use indexmap::IndexMap;
+use laminar::{Packet, Socket, SocketEvent};
+use std::time::Instant;
 
 const WIDTH: usize = 30;
 const HEIGHT: usize = 30;
@@ -19,6 +22,7 @@ pub struct Mazehem {
     last_key: Option<KeyCode>,
     player: Player,
     goals: Goals,
+    bind: Socket,
 }
 
 impl<T> Drawable for IndexMap<Coord, T>
@@ -85,6 +89,7 @@ impl Mazehem {
     }
 }
 
+#[allow(unused_must_use)]
 impl Game for Mazehem {
     type Input = CustomInput;
     type LoadingScreen = ();
@@ -95,8 +100,9 @@ impl Game for Mazehem {
         Task::succeed(|| Mazehem {
             cells,
             last_key: None,
-            player: Player::new(Color::RED, Coord::new(0, 0)),
+            player: Player::new(1),
             goals: Goals::new(vec![Coord::new(WIDTH - 1, HEIGHT - 1)]),
+            bind: Socket::bind("0.0.0.0:7070").unwrap(),
         })
     }
 
@@ -122,9 +128,26 @@ impl Game for Mazehem {
     }
 
     fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
-        self.move_player();
+        // clear & compute
         frame.clear(Color::BLACK);
+        self.move_player();
 
+        // send & receive
+        self.bind.send(Packet::unreliable(
+            "0.0.0.0:8080".parse().unwrap(),
+            serialize(&self.player).unwrap(),
+        ));
+        self.bind.manual_poll(Instant::now());
+        while let Some(pkt) = self.bind.recv() {
+            match pkt {
+                SocketEvent::Packet(pkt) => {
+                    println!["{:?}", deserialize::<Player>(pkt.payload()).unwrap()]
+                }
+                _ => {}
+            }
+        }
+
+        // display
         let mut mesh = Mesh::new();
         self.cells.draw(&mut mesh);
         self.player.draw(&mut mesh);

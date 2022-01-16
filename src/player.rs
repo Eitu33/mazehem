@@ -1,15 +1,23 @@
 use crate::coord::Coord;
 use crate::drawable::Drawable;
 use coffee::graphics::{Color, Mesh, Rectangle, Shape};
+use serde_derive::{Deserialize, Serialize};
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Player {
-    pub color: Color,
+    pub number: usize,
     pub coord: Coord,
 }
 
 impl Player {
-    pub fn new(color: Color, coord: Coord) -> Player {
-        Player { color, coord }
+    pub fn new(number: usize) -> Player {
+        Player {
+            number,
+            coord: match number {
+                1 => Coord::new(0, 0),
+                _ => Coord::new(29, 29),
+            },
+        }
     }
 }
 
@@ -22,7 +30,10 @@ impl Drawable for Player {
                 width: 10.0,
                 height: 10.0,
             }),
-            self.color,
+            match self.number {
+                1 => Color::RED,
+                _ => Color::BLUE,
+            },
         );
     }
 }

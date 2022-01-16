@@ -1,6 +1,7 @@
+use serde_derive::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Coord {
     pub x: usize,
     pub y: usize,

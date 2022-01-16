@@ -20,6 +20,7 @@ impl Maze {
                 unconnected.insert(Coord::new(x, y), ());
             }
         }
+        unconnected.remove(&starting_coord);
         Maze {
             unconnected,
             connected,
