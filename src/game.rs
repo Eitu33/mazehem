@@ -12,6 +12,7 @@ use coffee::load::Task;
 use coffee::{Game, Timer};
 use indexmap::IndexMap;
 use laminar::{Packet, Socket, SocketEvent};
+use std::env;
 use std::time::Instant;
 
 const WIDTH: usize = 30;
@@ -95,6 +96,10 @@ impl Game for Mazehem {
     type LoadingScreen = ();
 
     fn load(_window: &Window) -> Task<Mazehem> {
+        // read client / server and ip input here?
+        let args: Vec<String> = env::args().collect();
+        println!("{:#?}", args);
+
         let mut maze = Maze::new(WIDTH, HEIGHT);
         let cells = maze.generate();
         Task::succeed(|| Mazehem {
