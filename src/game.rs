@@ -12,7 +12,11 @@ use coffee::load::Task;
 use coffee::{Game, Timer};
 use indexmap::IndexMap;
 use laminar::{Packet, Socket, SocketEvent};
+use local_ip_address::local_ip;
+use serde_derive::Deserialize;
 use std::env;
+use std::io;
+use std::net::SocketAddr;
 use std::time::Instant;
 
 const WIDTH: usize = 30;
@@ -23,7 +27,9 @@ pub struct Mazehem {
     last_key: Option<KeyCode>,
     player: Player,
     goals: Goals,
-    bind: Socket,
+    is_host: bool,
+    current: Socket,
+    external: Vec<SocketAddr>,
 }
 
 impl<T> Drawable for IndexMap<Coord, T>
@@ -37,7 +43,42 @@ where
     }
 }
 
+fn invalid_input() -> coffee::Error {
+    coffee::Error::IO(io::Error::new(
+        io::ErrorKind::InvalidInput,
+        "incorrect usage",
+    ))
+}
+
+fn handle_args() -> Result<(bool, Vec<SocketAddr>), coffee::Error> {
+    let args: Vec<String> = env::args().collect();
+    match args.len() {
+        1 => Err(invalid_input()),
+        2 if args[1] == "host" => {
+            println!("host address: {}:7070", local_ip().unwrap());
+            Ok((true, Vec::new()))
+        }
+        // ensure the given ip is valid
+        3 if args[1] == "client " => Ok((false, vec![args[2].parse().unwrap()])),
+        _ => Err(invalid_input()),
+    }
+}
+
 impl Mazehem {
+    fn new() -> Result<Mazehem, coffee::Error> {
+        let mut maze = Maze::new(WIDTH, HEIGHT);
+        let cells = maze.generate();
+        let args = handle_args()?;
+        Ok(Mazehem {
+            cells,
+            last_key: None,
+            player: Player::new(1),
+            goals: Goals::new(vec![Coord::new(WIDTH - 1, HEIGHT - 1)]),
+            is_host: args.0,
+            current: Socket::bind("0.0.0.0:7070").unwrap(),
+            external: args.1,
+        })
+    }
     fn move_allowed(&self, to: &Coord) -> bool {
         if !to.out_of_bounds(WIDTH, HEIGHT) {
             self.cells.get(&self.player.coord).unwrap().n.contains(to)
@@ -90,25 +131,19 @@ impl Mazehem {
     }
 }
 
+#[derive(Debug, Deserialize)]
+enum Data {
+    Player(Player),
+    SocketAddr(SocketAddr),
+}
+
 #[allow(unused_must_use)]
 impl Game for Mazehem {
     type Input = CustomInput;
     type LoadingScreen = ();
 
     fn load(_window: &Window) -> Task<Mazehem> {
-        // read client / server and ip input here?
-        let args: Vec<String> = env::args().collect();
-        println!("{:#?}", args);
-
-        let mut maze = Maze::new(WIDTH, HEIGHT);
-        let cells = maze.generate();
-        Task::succeed(|| Mazehem {
-            cells,
-            last_key: None,
-            player: Player::new(1),
-            goals: Goals::new(vec![Coord::new(WIDTH - 1, HEIGHT - 1)]),
-            bind: Socket::bind("0.0.0.0:7070").unwrap(),
-        })
+        Task::new(|| Mazehem::new())
     }
 
     fn interact(&mut self, input: &mut CustomInput, _window: &mut Window) {
@@ -138,17 +173,22 @@ impl Game for Mazehem {
         self.move_player();
 
         // send & receive
-        self.bind.send(Packet::unreliable(
-            "0.0.0.0:8080".parse().unwrap(),
-            serialize(&self.player).unwrap(),
-        ));
-        self.bind.manual_poll(Instant::now());
-        while let Some(pkt) = self.bind.recv() {
+        for addr in &self.external {
+            self.current
+                .send(Packet::unreliable(*addr, serialize(&self.player).unwrap()));
+        }
+        self.current.manual_poll(Instant::now());
+        while let Some(pkt) = self.current.recv() {
             match pkt {
                 SocketEvent::Packet(pkt) => {
-                    println!["{:?}", deserialize::<Player>(pkt.payload()).unwrap()]
+                    println!["{:#?}", deserialize::<Data>(pkt.payload()).unwrap()];
+                    match deserialize::<Data>(pkt.payload()).unwrap() {
+                        Data::Player(player) => (),
+                        Data::SocketAddr(addr) => (),
+                        _ => ()
+                    }
                 }
-                _ => {}
+                _ => ()
             }
         }
 
