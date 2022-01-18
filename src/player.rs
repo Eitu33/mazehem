@@ -3,7 +3,7 @@ use crate::drawable::Drawable;
 use coffee::graphics::{Color, Mesh, Rectangle, Shape};
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Player {
     pub number: usize,
     pub coord: Coord,

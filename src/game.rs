@@ -22,14 +22,25 @@ use std::time::Instant;
 const WIDTH: usize = 30;
 const HEIGHT: usize = 30;
 
+// TODO: server authority
+
+pub struct Server {
+    server: Socket,
+    clients: Vec<SocketAddr>,
+}
+
+pub enum NetworkIdendity {
+    Server(Server),
+    Client(SocketAddr),
+}
+
 pub struct Mazehem {
     cells: IndexMap<Coord, Cell>,
     last_key: Option<KeyCode>,
     player: Player,
     goals: Goals,
     is_host: bool,
-    current: Socket,
-    external: Vec<SocketAddr>,
+    network: NetworkIdendity,
 }
 
 impl<T> Drawable for IndexMap<Coord, T>
@@ -43,6 +54,17 @@ where
     }
 }
 
+impl<T> Drawable for Vec<T>
+where
+    T: Drawable,
+{
+    fn draw(&self, mesh: &mut Mesh) {
+        for elem in self {
+            elem.draw(mesh);
+        }
+    }
+}
+
 fn invalid_input() -> coffee::Error {
     coffee::Error::IO(io::Error::new(
         io::ErrorKind::InvalidInput,
@@ -50,16 +72,17 @@ fn invalid_input() -> coffee::Error {
     ))
 }
 
-fn handle_args() -> Result<(bool, Vec<SocketAddr>), coffee::Error> {
+fn handle_args() -> Result<(bool, Option<SocketAddr>), coffee::Error> {
     let args: Vec<String> = env::args().collect();
+    println!("{:#?}", args);
     match args.len() {
         1 => Err(invalid_input()),
         2 if args[1] == "host" => {
             println!("host address: {}:7070", local_ip().unwrap());
-            Ok((true, Vec::new()))
+            Ok((true, None))
         }
         // ensure the given ip is valid
-        3 if args[1] == "client " => Ok((false, vec![args[2].parse().unwrap()])),
+        3 if args[1] == "client" => Ok((false, Some(args[2].parse().unwrap()))),
         _ => Err(invalid_input()),
     }
 }
@@ -75,10 +98,16 @@ impl Mazehem {
             player: Player::new(1),
             goals: Goals::new(vec![Coord::new(WIDTH - 1, HEIGHT - 1)]),
             is_host: args.0,
-            current: Socket::bind("0.0.0.0:7070").unwrap(),
-            external: args.1,
+            network: match args.0 {
+                true => NetworkIdendity::Server(Server {
+                    server: Socket::bind("0.0.0.0:7070").unwrap(),
+                    clients: Vec::new(),
+                }),
+                false => NetworkIdendity::Client(args.1.unwrap()),
+            },
         })
     }
+
     fn move_allowed(&self, to: &Coord) -> bool {
         if !to.out_of_bounds(WIDTH, HEIGHT) {
             self.cells.get(&self.player.coord).unwrap().n.contains(to)
@@ -171,29 +200,42 @@ impl Game for Mazehem {
         // clear & compute
         frame.clear(Color::BLACK);
         self.move_player();
+        let mut mesh = Mesh::new();
+        let mut players = Vec::new();
 
-        // send & receive
-        for addr in &self.external {
-            self.current
-                .send(Packet::unreliable(*addr, serialize(&self.player).unwrap()));
-        }
+        // TODO: update this for both network types
+        // receive
         self.current.manual_poll(Instant::now());
         while let Some(pkt) = self.current.recv() {
             match pkt {
                 SocketEvent::Packet(pkt) => {
                     println!["{:#?}", deserialize::<Data>(pkt.payload()).unwrap()];
                     match deserialize::<Data>(pkt.payload()).unwrap() {
-                        Data::Player(player) => (),
-                        Data::SocketAddr(addr) => (),
-                        _ => ()
+                        Data::Player(player) => players.push(player),
+                        Data::SocketAddr(addr) => self.external.push(addr),
                     }
                 }
-                _ => ()
+                _ => (),
+            }
+        }
+        // send
+        if self.is_host {
+            for addr in &self.external {
+                self.current
+                    .send(Packet::unreliable(*addr, serialize(&self.player).unwrap()));
+            }
+        } else {
+            players.push(self.player.clone());
+            for addr in &self.external {
+                for p in &players {
+                    self.current
+                        .send(Packet::unreliable(*addr, serialize(p).unwrap()));
+                }
             }
         }
 
         // display
-        let mut mesh = Mesh::new();
+        players.draw(&mut mesh);
         self.cells.draw(&mut mesh);
         self.player.draw(&mut mesh);
         self.goals.draw(&mut mesh);
