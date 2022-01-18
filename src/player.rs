@@ -30,10 +30,7 @@ impl Drawable for Player {
                 width: 10.0,
                 height: 10.0,
             }),
-            match self.number {
-                1 => Color::RED,
-                _ => Color::BLUE,
-            },
+            Color::BLUE,
         );
     }
 }

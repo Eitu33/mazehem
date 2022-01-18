@@ -13,7 +13,7 @@ use coffee::{Game, Timer};
 use indexmap::IndexMap;
 use laminar::{Packet, Socket, SocketEvent};
 use local_ip_address::local_ip;
-use serde_derive::Deserialize;
+use serde_derive::{Deserialize, Serialize};
 use std::env;
 use std::io;
 use std::net::SocketAddr;
@@ -22,14 +22,36 @@ use std::time::Instant;
 const WIDTH: usize = 30;
 const HEIGHT: usize = 30;
 
-pub struct Server {
-    socket: Socket,
+// use struct instead of enum because coffee interface uses a mutable reference
+// move out of the ref to update the enums content not allowed
+pub struct NetworkIdendity {
+    host: bool,
+    self_addr: SocketAddr,
+    host_addr: Option<SocketAddr>,
+    socket: Option<Socket>,
     clients: Vec<SocketAddr>,
 }
 
-pub enum NetworkIdendity {
-    Server(Server),
-    Client(SocketAddr),
+impl NetworkIdendity {
+    fn server() -> NetworkIdendity {
+        NetworkIdendity {
+            host: true,
+            self_addr: SocketAddr::new(local_ip().unwrap(), 7070),
+            host_addr: None,
+            socket: Some(Socket::bind("0.0.0.0:7070").unwrap()),
+            clients: Vec::new(),
+        }
+    }
+
+    fn client(host_addr: SocketAddr) -> NetworkIdendity {
+        NetworkIdendity {
+            host: false,
+            self_addr: SocketAddr::new(local_ip().unwrap(), 9090),
+            host_addr: Some(host_addr),
+            socket: Some(Socket::bind("0.0.0.0:9090").unwrap()),
+            clients: Vec::new(),
+        }
+    }
 }
 
 pub struct Mazehem {
@@ -71,11 +93,8 @@ impl Mazehem {
             player: Player::new(1),
             goals: Goals::new(vec![Coord::new(WIDTH - 1, HEIGHT - 1)]),
             network: match arg {
-                Some(addr) => NetworkIdendity::Client(addr),
-                None => NetworkIdendity::Server(Server {
-                    socket: Socket::bind("0.0.0.0:7070").unwrap(),
-                    clients: Vec::new(),
-                }),
+                Some(addr) => NetworkIdendity::client(addr),
+                None => NetworkIdendity::server(),
             },
         })
     }
@@ -132,7 +151,7 @@ impl Mazehem {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 enum Data {
     Player(Player),
     SocketAddr(SocketAddr),
@@ -169,50 +188,86 @@ impl Game for Mazehem {
     }
 
     fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
-        // clear & compute
         frame.clear(Color::BLACK);
         self.move_player();
         let mut mesh = Mesh::new();
-        let mut players = Vec::new();
+        let mut players: Vec<Player> = Vec::new();
 
         // TODO: server authority
         // TODO: send maze
         // TODO: encrypt connections
         // TODO: add clients version
-        match self.network {
-            // receive
-            NetworkIdendity::Server(_) => {
-                server.socket.manual_poll(Instant::now());
-                while let Some(pkt) = server.socket.recv() {
+        match self.network.host {
+            true => {
+                self.network
+                    .socket
+                    .as_mut()
+                    .unwrap()
+                    .manual_poll(Instant::now());
+                // NEXT TODO: LIMIT ADDR SENDING
+                while let Some(pkt) = self.network.socket.as_mut().unwrap().recv() {
                     match pkt {
                         SocketEvent::Packet(pkt) => {
-                            println!["{:#?}", deserialize::<Data>(pkt.payload()).unwrap()];
+                            println![
+                                "received by server: {:#?}",
+                                deserialize::<Data>(pkt.payload()).unwrap()
+                            ];
                             match deserialize::<Data>(pkt.payload()).unwrap() {
-                                Data::Player(player) => players.push(player),
-                                Data::SocketAddr(addr) => server.clients.push(addr),
+                                Data::SocketAddr(addr) => self.network.clients.push(addr),
+                                _ => (),
                             }
                         }
                         _ => (),
                     }
                 }
-                // send
-                players.push(self.player.clone());
-                for addr in &server.clients {
-                    for p in &players {
-                        server
-                            .socket
-                            .send(Packet::unreliable(*addr, serialize(p).unwrap()));
-                    }
+                for addr in &self.network.clients {
+                    self.network
+                        .socket
+                        .as_mut()
+                        .unwrap()
+                        .send(Packet::unreliable(
+                            *addr,
+                            serialize(&Data::Player(self.player.clone())).unwrap(),
+                        ));
                 }
             }
-            NetworkIdendity::Client(_) => (),
+            false => {
+                self.network
+                    .socket
+                    .as_mut()
+                    .unwrap()
+                    .manual_poll(Instant::now());
+                while let Some(pkt) = self.network.socket.as_mut().unwrap().recv() {
+                    match pkt {
+                        SocketEvent::Packet(pkt) => {
+                            println![
+                                "received by client: {:#?}",
+                                deserialize::<Data>(pkt.payload()).unwrap()
+                            ];
+                            match deserialize::<Data>(pkt.payload()).unwrap() {
+                                Data::Player(player) => players.push(player),
+                                _ => (),
+                            }
+                        }
+                        _ => (),
+                    }
+                }
+                self.network
+                    .socket
+                    .as_mut()
+                    .unwrap()
+                    .send(Packet::unreliable(
+                        self.network.host_addr.unwrap(),
+                        serialize(&Data::SocketAddr(self.network.self_addr)).unwrap(),
+                    ));
+            }
         }
+        players.push(self.player.clone());
+        println!("PLAYERS LIST: {:#?}", players);
 
-        // display
-        players.draw(&mut mesh);
         self.cells.draw(&mut mesh);
-        self.player.draw(&mut mesh);
         self.goals.draw(&mut mesh);
+        players.draw(&mut mesh);
         mesh.draw(&mut frame.as_target());
     }
 }
