@@ -22,10 +22,8 @@ use std::time::Instant;
 const WIDTH: usize = 30;
 const HEIGHT: usize = 30;
 
-// TODO: server authority
-
 pub struct Server {
-    server: Socket,
+    socket: Socket,
     clients: Vec<SocketAddr>,
 }
 
@@ -39,51 +37,26 @@ pub struct Mazehem {
     last_key: Option<KeyCode>,
     player: Player,
     goals: Goals,
-    is_host: bool,
     network: NetworkIdendity,
 }
 
-impl<T> Drawable for IndexMap<Coord, T>
-where
-    T: Drawable,
-{
-    fn draw(&self, mesh: &mut Mesh) {
-        for cell in self {
-            cell.1.draw(mesh);
-        }
-    }
-}
-
-impl<T> Drawable for Vec<T>
-where
-    T: Drawable,
-{
-    fn draw(&self, mesh: &mut Mesh) {
-        for elem in self {
-            elem.draw(mesh);
-        }
-    }
-}
-
-fn invalid_input() -> coffee::Error {
-    coffee::Error::IO(io::Error::new(
-        io::ErrorKind::InvalidInput,
-        "incorrect usage",
-    ))
-}
-
-fn handle_args() -> Result<(bool, Option<SocketAddr>), coffee::Error> {
+fn handle_args() -> Result<Option<SocketAddr>, coffee::Error> {
     let args: Vec<String> = env::args().collect();
-    println!("{:#?}", args);
     match args.len() {
-        1 => Err(invalid_input()),
+        1 => Err(coffee::Error::IO(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "missing arguments",
+        ))),
         2 if args[1] == "host" => {
             println!("host address: {}:7070", local_ip().unwrap());
-            Ok((true, None))
+            Ok(None)
         }
-        // ensure the given ip is valid
-        3 if args[1] == "client" => Ok((false, Some(args[2].parse().unwrap()))),
-        _ => Err(invalid_input()),
+        // TODO: make sure the given ip is valid
+        3 if args[1] == "client" => Ok(Some(args[2].parse().unwrap())),
+        _ => Err(coffee::Error::IO(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "incorrect usage",
+        ))),
     }
 }
 
@@ -91,19 +64,18 @@ impl Mazehem {
     fn new() -> Result<Mazehem, coffee::Error> {
         let mut maze = Maze::new(WIDTH, HEIGHT);
         let cells = maze.generate();
-        let args = handle_args()?;
+        let arg = handle_args()?;
         Ok(Mazehem {
             cells,
             last_key: None,
             player: Player::new(1),
             goals: Goals::new(vec![Coord::new(WIDTH - 1, HEIGHT - 1)]),
-            is_host: args.0,
-            network: match args.0 {
-                true => NetworkIdendity::Server(Server {
-                    server: Socket::bind("0.0.0.0:7070").unwrap(),
+            network: match arg {
+                Some(addr) => NetworkIdendity::Client(addr),
+                None => NetworkIdendity::Server(Server {
+                    socket: Socket::bind("0.0.0.0:7070").unwrap(),
                     clients: Vec::new(),
                 }),
-                false => NetworkIdendity::Client(args.1.unwrap()),
             },
         })
     }
@@ -203,35 +175,37 @@ impl Game for Mazehem {
         let mut mesh = Mesh::new();
         let mut players = Vec::new();
 
-        // TODO: update this for both network types
-        // receive
-        self.current.manual_poll(Instant::now());
-        while let Some(pkt) = self.current.recv() {
-            match pkt {
-                SocketEvent::Packet(pkt) => {
-                    println!["{:#?}", deserialize::<Data>(pkt.payload()).unwrap()];
-                    match deserialize::<Data>(pkt.payload()).unwrap() {
-                        Data::Player(player) => players.push(player),
-                        Data::SocketAddr(addr) => self.external.push(addr),
+        // TODO: server authority
+        // TODO: send maze
+        // TODO: encrypt connections
+        // TODO: add clients version
+        match self.network {
+            // receive
+            NetworkIdendity::Server(_) => {
+                server.socket.manual_poll(Instant::now());
+                while let Some(pkt) = server.socket.recv() {
+                    match pkt {
+                        SocketEvent::Packet(pkt) => {
+                            println!["{:#?}", deserialize::<Data>(pkt.payload()).unwrap()];
+                            match deserialize::<Data>(pkt.payload()).unwrap() {
+                                Data::Player(player) => players.push(player),
+                                Data::SocketAddr(addr) => server.clients.push(addr),
+                            }
+                        }
+                        _ => (),
                     }
                 }
-                _ => (),
-            }
-        }
-        // send
-        if self.is_host {
-            for addr in &self.external {
-                self.current
-                    .send(Packet::unreliable(*addr, serialize(&self.player).unwrap()));
-            }
-        } else {
-            players.push(self.player.clone());
-            for addr in &self.external {
-                for p in &players {
-                    self.current
-                        .send(Packet::unreliable(*addr, serialize(p).unwrap()));
+                // send
+                players.push(self.player.clone());
+                for addr in &server.clients {
+                    for p in &players {
+                        server
+                            .socket
+                            .send(Packet::unreliable(*addr, serialize(p).unwrap()));
+                    }
                 }
             }
+            NetworkIdendity::Client(_) => (),
         }
 
         // display
