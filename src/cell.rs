@@ -1,8 +1,10 @@
 use crate::coord::Coord;
 use crate::drawable::Drawable;
 use coffee::graphics::{Color, Mesh, Rectangle, Shape};
+use serde_derive::{Deserialize, Serialize};
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+
 pub struct Cell {
     pub coord: Coord,
     pub n: Vec<Coord>,

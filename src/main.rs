@@ -1,7 +1,7 @@
 mod cell;
 mod coord;
 mod drawable;
-mod game;
+mod game_server;
 mod goals;
 mod input;
 mod maze;
@@ -9,7 +9,7 @@ mod player;
 
 use coffee::graphics::WindowSettings;
 use coffee::Game;
-use game::Mazehem;
+use game_server::Mazehem;
 
 fn main() {
     match Mazehem::run(WindowSettings {

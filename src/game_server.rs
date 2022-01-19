@@ -22,44 +22,13 @@ use std::time::Instant;
 const WIDTH: usize = 30;
 const HEIGHT: usize = 30;
 
-// use struct instead of enum because coffee interface uses a mutable reference
-// move out of the ref to update the enums content not allowed
-pub struct NetworkIdendity {
-    host: bool,
-    self_addr: SocketAddr,
-    host_addr: Option<SocketAddr>,
-    socket: Option<Socket>,
-    clients: Vec<SocketAddr>,
-}
-
-impl NetworkIdendity {
-    fn server() -> NetworkIdendity {
-        NetworkIdendity {
-            host: true,
-            self_addr: SocketAddr::new(local_ip().unwrap(), 7070),
-            host_addr: None,
-            socket: Some(Socket::bind("0.0.0.0:7070").unwrap()),
-            clients: Vec::new(),
-        }
-    }
-
-    fn client(host_addr: SocketAddr) -> NetworkIdendity {
-        NetworkIdendity {
-            host: false,
-            self_addr: SocketAddr::new(local_ip().unwrap(), 9090),
-            host_addr: Some(host_addr),
-            socket: Some(Socket::bind("0.0.0.0:9090").unwrap()),
-            clients: Vec::new(),
-        }
-    }
-}
-
 pub struct Mazehem {
     cells: IndexMap<Coord, Cell>,
     last_key: Option<KeyCode>,
     player: Player,
     goals: Goals,
-    network: NetworkIdendity,
+    socket: Socket,
+    clients: Vec<SocketAddr>,
 }
 
 fn handle_args() -> Result<Option<SocketAddr>, coffee::Error> {
@@ -84,18 +53,21 @@ fn handle_args() -> Result<Option<SocketAddr>, coffee::Error> {
 
 impl Mazehem {
     fn new() -> Result<Mazehem, coffee::Error> {
+        println!("host address: {}:7070", local_ip().unwrap());
         let mut maze = Maze::new(WIDTH, HEIGHT);
         let cells = maze.generate();
         let arg = handle_args()?;
         Ok(Mazehem {
-            cells,
+            cells: if !arg.is_some() {
+                cells
+            } else {
+                IndexMap::new()
+            },
             last_key: None,
             player: Player::new(1),
             goals: Goals::new(vec![Coord::new(WIDTH - 1, HEIGHT - 1)]),
-            network: match arg {
-                Some(addr) => NetworkIdendity::client(addr),
-                None => NetworkIdendity::server(),
-            },
+            socket: Socket::bind("0.0.0.0:9090").unwrap(),
+            clients: Vec::new(),
         })
     }
 
@@ -155,6 +127,7 @@ impl Mazehem {
 enum Data {
     Player(Player),
     SocketAddr(SocketAddr),
+    Cells(Vec<Cell>),
 }
 
 #[allow(unused_must_use)]
@@ -193,78 +166,8 @@ impl Game for Mazehem {
         let mut mesh = Mesh::new();
         let mut players: Vec<Player> = Vec::new();
 
-        // TODO: server authority
-        // TODO: send maze
-        // TODO: encrypt connections
-        // TODO: add clients version
-        match self.network.host {
-            true => {
-                self.network
-                    .socket
-                    .as_mut()
-                    .unwrap()
-                    .manual_poll(Instant::now());
-                // NEXT TODO: LIMIT ADDR SENDING
-                while let Some(pkt) = self.network.socket.as_mut().unwrap().recv() {
-                    match pkt {
-                        SocketEvent::Packet(pkt) => {
-                            println![
-                                "received by server: {:#?}",
-                                deserialize::<Data>(pkt.payload()).unwrap()
-                            ];
-                            match deserialize::<Data>(pkt.payload()).unwrap() {
-                                Data::SocketAddr(addr) => self.network.clients.push(addr),
-                                _ => (),
-                            }
-                        }
-                        _ => (),
-                    }
-                }
-                for addr in &self.network.clients {
-                    self.network
-                        .socket
-                        .as_mut()
-                        .unwrap()
-                        .send(Packet::unreliable(
-                            *addr,
-                            serialize(&Data::Player(self.player.clone())).unwrap(),
-                        ));
-                }
-            }
-            false => {
-                self.network
-                    .socket
-                    .as_mut()
-                    .unwrap()
-                    .manual_poll(Instant::now());
-                while let Some(pkt) = self.network.socket.as_mut().unwrap().recv() {
-                    match pkt {
-                        SocketEvent::Packet(pkt) => {
-                            println![
-                                "received by client: {:#?}",
-                                deserialize::<Data>(pkt.payload()).unwrap()
-                            ];
-                            match deserialize::<Data>(pkt.payload()).unwrap() {
-                                Data::Player(player) => players.push(player),
-                                _ => (),
-                            }
-                        }
-                        _ => (),
-                    }
-                }
-                self.network
-                    .socket
-                    .as_mut()
-                    .unwrap()
-                    .send(Packet::unreliable(
-                        self.network.host_addr.unwrap(),
-                        serialize(&Data::SocketAddr(self.network.self_addr)).unwrap(),
-                    ));
-            }
-        }
         players.push(self.player.clone());
         println!("PLAYERS LIST: {:#?}", players);
-
         self.cells.draw(&mut mesh);
         self.goals.draw(&mut mesh);
         players.draw(&mut mesh);
