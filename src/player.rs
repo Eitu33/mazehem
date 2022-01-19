@@ -7,16 +7,38 @@ use serde_derive::{Deserialize, Serialize};
 pub struct Player {
     pub number: usize,
     pub coord: Coord,
+    #[serde(skip)]
+    pub color: Option<Color>,
 }
 
 impl Player {
     pub fn new(number: usize) -> Player {
         Player {
             number,
-            coord: match number {
-                1 => Coord::new(0, 0),
-                _ => Coord::new(29, 29),
-            },
+            coord: Coord::new(0, 0),
+            color: None,
+        }
+    }
+
+    pub fn init(&mut self) {
+        match self.number {
+            1 => {
+                self.coord = Coord::new(0, 0);
+                self.color = Some(Color::RED)
+            }
+            2 => {
+                self.coord = Coord::new(29, 0);
+                self.color = Some(Color::BLUE)
+            }
+            3 => {
+                self.coord = Coord::new(0, 29);
+                self.color = Some(Color::GREEN)
+            }
+            4 => {
+                self.coord = Coord::new(29, 29);
+                self.color = Some(Color::from_rgb_u32(0xDEC20B))
+            }
+            _ => (),
         }
     }
 }
@@ -30,7 +52,7 @@ impl Drawable for Player {
                 width: 10.0,
                 height: 10.0,
             }),
-            Color::BLUE,
+            self.color.unwrap_or(Color::WHITE),
         );
     }
 }

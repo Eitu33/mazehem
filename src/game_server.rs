@@ -2,7 +2,7 @@ use crate::cell::Cell;
 use crate::coord::Coord;
 use crate::drawable::Drawable;
 use crate::goals::Goals;
-use crate::input::CustomInput;
+use crate::input::GameInput;
 use crate::maze::Maze;
 use crate::player::Player;
 use bincode::{deserialize, serialize};
@@ -50,7 +50,7 @@ fn handle_args() -> coffee::Result<Option<SocketAddr>> {
     match args.len() {
         1 => Err(invalid_input()),
         2 if args[1] == "host" => {
-            println!("host address: {}:7070", local_ip().unwrap());
+            println!("host address: {}:9090", local_ip().unwrap());
             Ok(None)
         }
         3 if args[1] == "client" => Ok(Some(args[2].parse().unwrap())),
@@ -61,10 +61,12 @@ fn handle_args() -> coffee::Result<Option<SocketAddr>> {
 impl Mazehem {
     fn new() -> coffee::Result<Mazehem> {
         let server_addr = handle_args()?;
+        let mut player = Player::new(1);
+        player.init();
         Ok(Mazehem {
             cells: Maze::new(WIDTH, HEIGHT).generate(),
             last_key: None,
-            player: Player::new(1),
+            player,
             goals: Goals::new(vec![Coord::new(WIDTH - 1, HEIGHT - 1)]),
             socket: if server_addr.is_some() {
                 Socket::bind("0.0.0.0:7070").unwrap()
@@ -130,14 +132,14 @@ impl Mazehem {
 
 #[allow(unused_must_use)]
 impl Game for Mazehem {
-    type Input = CustomInput;
+    type Input = GameInput;
     type LoadingScreen = ();
 
     fn load(_window: &Window) -> Task<Mazehem> {
         Task::new(|| Mazehem::new())
     }
 
-    fn interact(&mut self, input: &mut CustomInput, _window: &mut Window) {
+    fn interact(&mut self, input: &mut GameInput, _window: &mut Window) {
         if input.keys_pressed.len() != 0 {
             let key = input.keys_pressed[0];
             match key {
@@ -202,9 +204,9 @@ impl Game for Mazehem {
         }
 
         players.push(self.player.clone());
-        println!("PLAYERS LIST: {:#?}", players);
+        // println!("PLAYERS LIST: {:#?}", players);
         self.cells.draw(&mut mesh);
-        self.goals.draw(&mut mesh);
+        // self.goals.draw(&mut mesh);
         players.draw(&mut mesh);
         mesh.draw(&mut frame.as_target());
     }

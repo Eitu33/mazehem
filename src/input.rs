@@ -1,13 +1,13 @@
 use coffee::input::keyboard::KeyCode;
 use coffee::input::{self, keyboard, Input};
 
-pub struct CustomInput {
+pub struct GameInput {
     pub keys_pressed: Vec<KeyCode>,
 }
 
-impl Input for CustomInput {
-    fn new() -> CustomInput {
-        CustomInput {
+impl Input for GameInput {
+    fn new() -> GameInput {
+        GameInput {
             keys_pressed: Vec::new(),
         }
     }
