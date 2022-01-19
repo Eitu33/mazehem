@@ -176,11 +176,11 @@ impl Game for Mazehem {
         self.socket.manual_poll(Instant::now());
         if let Some(addr) = self.server_addr {
             // experimental here
+            // note: Vec<T> can be sent (too large?)
             match self.socket.recv() {
                 Some(SocketEvent::Packet(packet)) => {
-                    println!("CLIENT PACKET: {:?}", packet);
                     if let Ok(cells) = deserialize::<Cell>(packet.payload()) {
-                        println!("MAZE RECEIVED");
+                        println!("CELL RECEIVED");
                         self.v_cells = vec![cells];
                     }
                 }
@@ -215,7 +215,7 @@ impl Game for Mazehem {
                 }
                 Some(SocketEvent::Connect(addr)) => {
                     if self.clients.len() < 3 {
-                        println!("CONNECTION");
+                        println!("CONNECTION SUCCEEDED");
                         let ser_cells: Cell =
                             self.cells.clone().into_iter().map(|x| x.1).collect::<Vec<Cell>>()[0]
                                 .clone();
