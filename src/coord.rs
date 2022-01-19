@@ -1,3 +1,5 @@
+use crate::drawable::Drawable;
+use coffee::graphics::{Color, Mesh, Rectangle, Shape};
 use serde_derive::{Deserialize, Serialize};
 use std::fmt;
 
@@ -20,5 +22,19 @@ impl Coord {
 impl fmt::Display for Coord {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "({}, {})", self.x, self.y)
+    }
+}
+
+impl Drawable for Coord {
+    fn draw(&self, mesh: &mut Mesh) {
+        mesh.fill(
+            Shape::Rectangle(Rectangle {
+                x: (self.x * 20) as f32,
+                y: (self.y * 20) as f32,
+                width: 10.0,
+                height: 10.0,
+            }),
+            Color::from_rgb_u32(0x8F00FF),
+        );
     }
 }

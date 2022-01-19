@@ -1,7 +1,6 @@
 use crate::cell::Cell;
 use crate::coord::Coord;
 use crate::drawable::Drawable;
-use crate::goals::Goals;
 use crate::input::GameInput;
 use crate::maze::Maze;
 use crate::player::{init_players, Player};
@@ -30,7 +29,7 @@ pub struct Mazehem {
     cells: IndexMap<Coord, Cell>,
     last_key: SerKey,
     players: Vec<Player>,
-    goals: Goals,
+    goal: Coord,
     socket: Socket,
     clients: Vec<SocketAddr>,
     server_addr: Option<SocketAddr>,
@@ -63,7 +62,7 @@ impl Mazehem {
             cells: Maze::new(WIDTH, HEIGHT).generate(),
             last_key: SerKey::Undefined,
             players: init_players(),
-            goals: Goals::new(vec![Coord::new(WIDTH - 1, HEIGHT - 1)]),
+            goal: Coord::new(WIDTH / 2, HEIGHT / 2),
             socket: if server_addr.is_some() {
                 Socket::bind("0.0.0.0:7070").unwrap()
             } else {
@@ -216,8 +215,8 @@ impl Game for Mazehem {
         let mut mesh = Mesh::new();
         frame.clear(Color::BLACK);
         self.cells.draw(&mut mesh);
-        // self.goals.draw(&mut mesh);
         self.players.draw(&mut mesh);
+        self.goal.draw(&mut mesh);
         mesh.draw(&mut frame.as_target());
     }
 }
