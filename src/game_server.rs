@@ -31,38 +31,14 @@ pub struct Mazehem {
     clients: Vec<SocketAddr>,
 }
 
-fn handle_args() -> Result<Option<SocketAddr>, coffee::Error> {
-    let args: Vec<String> = env::args().collect();
-    match args.len() {
-        1 => Err(coffee::Error::IO(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "missing arguments",
-        ))),
-        2 if args[1] == "host" => {
-            println!("host address: {}:7070", local_ip().unwrap());
-            Ok(None)
-        }
-        // TODO: make sure the given ip is valid
-        3 if args[1] == "client" => Ok(Some(args[2].parse().unwrap())),
-        _ => Err(coffee::Error::IO(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "incorrect usage",
-        ))),
-    }
-}
 
 impl Mazehem {
     fn new() -> Result<Mazehem, coffee::Error> {
         println!("host address: {}:7070", local_ip().unwrap());
         let mut maze = Maze::new(WIDTH, HEIGHT);
         let cells = maze.generate();
-        let arg = handle_args()?;
         Ok(Mazehem {
-            cells: if !arg.is_some() {
-                cells
-            } else {
-                IndexMap::new()
-            },
+            cells,
             last_key: None,
             player: Player::new(1),
             goals: Goals::new(vec![Coord::new(WIDTH - 1, HEIGHT - 1)]),
