@@ -189,25 +189,23 @@ impl Game for Mazehem {
                     addr,
                     serialize::<SerKey>(&self.last_key).unwrap(),
                 ))
-                .expect("This should send");
+                .expect("this should send");
+            // following could be useful
+            // let ip = packet.addr().ip();
+            // println!("Received {:?} from {:?}", key, ip);
         } else {
             self.move_player(0, self.last_key.clone());
             if let Some(socket_event) = self.socket.recv() {
                 match socket_event {
                     SocketEvent::Packet(packet) => {
                         let key = deserialize::<SerKey>(packet.payload()).unwrap();
-                        let ip = packet.addr().ip();
-                        println!("Received {:?} from {:?}", key, ip);
                         self.move_player(1, key);
                     }
-                    SocketEvent::Connect(addr) => {
-                        println!("ip = {} connected", addr);
-                        self.clients.push(addr);
-                    }
-                    SocketEvent::Timeout(addr) => println!("ip = {} timed out", addr),
+                    SocketEvent::Connect(addr) => self.clients.push(addr),
+                    SocketEvent::Timeout(addr) => println!("client ip {} timed out", addr),
                     SocketEvent::Disconnect(addr) => {
-                        println!("ip = {} disconnected", addr);
                         let index = self.clients.iter().position(|x| x == &addr).unwrap();
+                        // note: this could changes indexes and player control
                         self.clients.remove(index);
                     }
                 }
