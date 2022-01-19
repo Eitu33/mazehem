@@ -35,10 +35,8 @@ impl Cell {
 impl Drawable for Cell {
     fn draw(&self, mesh: &mut Mesh) {
         for neighbor in &self.n {
-            let mut width = 10.0;
-            let mut height = 10.0;
-            let mut a = 0;
-            let mut b = 0;
+            let (mut width, mut height) = (10.0, 10.0);
+            let (mut a, mut b) = (0, 0);
             if neighbor.x < self.coord.x {
                 width = 30.0;
                 a = 20;

@@ -17,6 +17,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::env;
 use std::io;
 use std::net::SocketAddr;
+use std::thread;
 use std::time::Instant;
 
 const WIDTH: usize = 30;
@@ -139,7 +140,27 @@ impl Game for Mazehem {
         let mut mesh = Mesh::new();
         let mut players: Vec<Player> = Vec::new();
 
-        let _event_receiver = self.socket.get_event_receiver();
+        self.socket.manual_poll(Instant::now());
+        if let Some(socket_event) = self.socket.recv() {
+            match socket_event {
+                SocketEvent::Packet(packet) => {
+                    let msg = packet.payload();
+                    let msg = String::from_utf8_lossy(msg);
+                    let ip = packet.addr().ip();
+                    println!("Received {:?} from {:?}", msg, ip);
+
+                    self.socket
+                        .send(Packet::reliable_unordered(
+                            packet.addr(),
+                            "Copy that!".as_bytes().to_vec(),
+                        ))
+                        .expect("This should send");
+                }
+                SocketEvent::Connect(connect_event) => { /* a client connected */ }
+                SocketEvent::Timeout(timeout_event) => { /* a client timed out */ }
+                SocketEvent::Disconnect(disconnect_event) => { /* a client disconnected */ }
+            }
+        }
 
         players.push(self.player.clone());
         println!("PLAYERS LIST: {:#?}", players);
