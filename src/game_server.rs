@@ -31,20 +31,17 @@ pub struct Mazehem {
     clients: Vec<SocketAddr>,
 }
 
-
 impl Mazehem {
-    fn new() -> Result<Mazehem, coffee::Error> {
+    fn new() -> Mazehem {
         println!("host address: {}:7070", local_ip().unwrap());
-        let mut maze = Maze::new(WIDTH, HEIGHT);
-        let cells = maze.generate();
-        Ok(Mazehem {
-            cells,
+        Mazehem {
+            cells: Maze::new(WIDTH, HEIGHT).generate(),
             last_key: None,
             player: Player::new(1),
             goals: Goals::new(vec![Coord::new(WIDTH - 1, HEIGHT - 1)]),
             socket: Socket::bind("0.0.0.0:9090").unwrap(),
             clients: Vec::new(),
-        })
+        }
     }
 
     fn move_allowed(&self, to: &Coord) -> bool {
@@ -112,7 +109,7 @@ impl Game for Mazehem {
     type LoadingScreen = ();
 
     fn load(_window: &Window) -> Task<Mazehem> {
-        Task::new(|| Mazehem::new())
+        Task::succeed(|| Mazehem::new())
     }
 
     fn interact(&mut self, input: &mut CustomInput, _window: &mut Window) {
@@ -141,6 +138,8 @@ impl Game for Mazehem {
         self.move_player();
         let mut mesh = Mesh::new();
         let mut players: Vec<Player> = Vec::new();
+
+        let _event_receiver = self.socket.get_event_receiver();
 
         players.push(self.player.clone());
         println!("PLAYERS LIST: {:#?}", players);
