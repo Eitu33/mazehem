@@ -75,17 +75,8 @@ impl Mazehem {
 
     fn move_allowed(&self, i: usize, to: &Coord) -> bool {
         if !to.out_of_bounds(WIDTH, HEIGHT) {
-            self.cells
-                .get(&self.players[i].coord)
-                .unwrap()
-                .n
-                .contains(to)
-                || self
-                    .cells
-                    .get(to)
-                    .unwrap()
-                    .n
-                    .contains(&self.players[i].coord)
+            self.cells.get(&self.players[i].coord).unwrap().n.contains(to)
+                || self.cells.get(to).unwrap().n.contains(&self.players[i].coord)
         } else {
             false
         }
@@ -182,7 +173,7 @@ impl Game for Mazehem {
     fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
         self.socket.manual_poll(Instant::now());
         if let Some(addr) = self.server_addr {
-            // note: this move should not be done
+            // note: need to receive player positions & move should not be done
             self.move_player(1, self.last_key.clone());
             self.socket
                 .send(Packet::reliable_unordered(
@@ -191,26 +182,42 @@ impl Game for Mazehem {
                 ))
                 .expect("this should send");
         } else {
+            // working but missing maze sending
             self.move_player(0, self.last_key.clone());
             if let Some(socket_event) = self.socket.recv() {
                 match socket_event {
                     SocketEvent::Packet(packet) => {
-                        let key = deserialize::<SerKey>(packet.payload()).unwrap();
-                        let client_addr = packet.addr();
-                        if let Some(index) = self.clients.iter().position(|x| x == &client_addr) {
-                            self.move_player(index + 1, key);
-                        } else {
-                            self.socket
-                                .send(Packet::reliable_unordered(
-                                    client_addr,
-                                    "connection allowed".as_bytes().to_vec(),
-                                ))
-                                .unwrap();
+                        if let Ok(key) = deserialize::<SerKey>(packet.payload()) {
+                            let client_addr = packet.addr();
+                            if let Some(index) = self.clients.iter().position(|x| x == &client_addr)
+                            {
+                                self.move_player(index + 1, key);
+                            } else {
+                                self.socket
+                                    .send(Packet::reliable_unordered(
+                                        client_addr,
+                                        "connection allowed".as_bytes().to_vec(),
+                                    ))
+                                    .unwrap();
+                            }
                         }
                     }
                     SocketEvent::Connect(addr) => {
                         if self.clients.len() < 3 {
-                            self.clients.push(addr)
+                            let ser_cells: Vec<Cell> = self
+                                .cells
+                                .clone()
+                                .into_iter()
+                                .map(|x| x.1)
+                                .collect::<Vec<Cell>>()
+                                .split_off(10);
+                            self.socket
+                                .send(Packet::reliable_unordered(
+                                    addr,
+                                    serialize::<Vec<Cell>>(&ser_cells).unwrap(),
+                                ))
+                                .unwrap();
+                            self.clients.push(addr);
                         }
                     }
                     SocketEvent::Timeout(_) => (),
