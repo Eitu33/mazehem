@@ -17,8 +17,13 @@ use serde_derive::{Deserialize, Serialize};
 use std::env;
 use std::io;
 use std::net::SocketAddr;
-use std::thread;
 use std::time::Instant;
+
+// TODO: make sure the given ip is valid
+// TODO: server authority
+// TODO: send maze
+// TODO: encrypt connections
+// TODO: add clients version
 
 const WIDTH: usize = 30;
 const HEIGHT: usize = 30;
@@ -30,19 +35,45 @@ pub struct Mazehem {
     goals: Goals,
     socket: Socket,
     clients: Vec<SocketAddr>,
+    server_addr: Option<SocketAddr>,
+}
+
+fn invalid_input() -> coffee::Error {
+    coffee::Error::IO(io::Error::new(
+        io::ErrorKind::InvalidInput,
+        "incorrect usage",
+    ))
+}
+
+fn handle_args() -> coffee::Result<Option<SocketAddr>> {
+    let args: Vec<String> = env::args().collect();
+    match args.len() {
+        1 => Err(invalid_input()),
+        2 if args[1] == "host" => {
+            println!("host address: {}:7070", local_ip().unwrap());
+            Ok(None)
+        }
+        3 if args[1] == "client" => Ok(Some(args[2].parse().unwrap())),
+        _ => Err(invalid_input()),
+    }
 }
 
 impl Mazehem {
-    fn new() -> Mazehem {
-        println!("host address: {}:7070", local_ip().unwrap());
-        Mazehem {
+    fn new() -> coffee::Result<Mazehem> {
+        let server_addr = handle_args()?;
+        Ok(Mazehem {
             cells: Maze::new(WIDTH, HEIGHT).generate(),
             last_key: None,
             player: Player::new(1),
             goals: Goals::new(vec![Coord::new(WIDTH - 1, HEIGHT - 1)]),
-            socket: Socket::bind("0.0.0.0:9090").unwrap(),
+            socket: if server_addr.is_some() {
+                Socket::bind("0.0.0.0:7070").unwrap()
+            } else {
+                Socket::bind("0.0.0.0:9090").unwrap()
+            },
             clients: Vec::new(),
-        }
+            server_addr,
+        })
     }
 
     fn move_allowed(&self, to: &Coord) -> bool {
@@ -110,7 +141,7 @@ impl Game for Mazehem {
     type LoadingScreen = ();
 
     fn load(_window: &Window) -> Task<Mazehem> {
-        Task::succeed(|| Mazehem::new())
+        Task::new(|| Mazehem::new())
     }
 
     fn interact(&mut self, input: &mut CustomInput, _window: &mut Window) {
