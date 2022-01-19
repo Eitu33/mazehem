@@ -182,6 +182,7 @@ impl Game for Mazehem {
     fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
         self.socket.manual_poll(Instant::now());
         if let Some(addr) = self.server_addr {
+            // note: this move should not be done
             self.move_player(1, self.last_key.clone());
             self.socket
                 .send(Packet::reliable_unordered(
