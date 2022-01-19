@@ -27,6 +27,7 @@ const HEIGHT: usize = 30;
 
 pub struct Mazehem {
     cells: IndexMap<Coord, Cell>,
+    v_cells: Vec<Cell>,
     last_key: SerKey,
     players: Vec<Player>,
     goal: Coord,
@@ -60,6 +61,7 @@ impl Mazehem {
         let server_addr = handle_args()?;
         Ok(Mazehem {
             cells: Maze::new(WIDTH, HEIGHT).generate(),
+            v_cells: Vec::new(),
             last_key: SerKey::Undefined,
             players: init_players(),
             goal: Coord::new(WIDTH / 2, HEIGHT / 2),
@@ -173,6 +175,17 @@ impl Game for Mazehem {
     fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
         self.socket.manual_poll(Instant::now());
         if let Some(addr) = self.server_addr {
+            // experimental here
+            match self.socket.recv() {
+                Some(SocketEvent::Packet(packet)) => {
+                    println!("CLIENT PACKET: {:?}", packet);
+                    if let Ok(cells) = deserialize::<Cell>(packet.payload()) {
+                        println!("MAZE RECEIVED");
+                        self.v_cells = vec![cells];
+                    }
+                }
+                _ => (),
+            }
             // note: need to receive player positions & move should not be done
             self.move_player(1, self.last_key.clone());
             self.socket
@@ -182,52 +195,49 @@ impl Game for Mazehem {
                 ))
                 .expect("this should send");
         } else {
-            // working but missing maze sending
+            // host udp code
             self.move_player(0, self.last_key.clone());
-            if let Some(socket_event) = self.socket.recv() {
-                match socket_event {
-                    SocketEvent::Packet(packet) => {
-                        if let Ok(key) = deserialize::<SerKey>(packet.payload()) {
-                            let client_addr = packet.addr();
-                            if let Some(index) = self.clients.iter().position(|x| x == &client_addr)
-                            {
-                                self.move_player(index + 1, key);
-                            } else {
-                                self.socket
-                                    .send(Packet::reliable_unordered(
-                                        client_addr,
-                                        "connection allowed".as_bytes().to_vec(),
-                                    ))
-                                    .unwrap();
-                            }
-                        }
-                    }
-                    SocketEvent::Connect(addr) => {
-                        if self.clients.len() < 3 {
-                            let ser_cells: Vec<Cell> = self
-                                .cells
-                                .clone()
-                                .into_iter()
-                                .map(|x| x.1)
-                                .collect::<Vec<Cell>>()
-                                .split_off(10);
+            match self.socket.recv() {
+                Some(SocketEvent::Packet(packet)) => {
+                    if let Ok(key) = deserialize::<SerKey>(packet.payload()) {
+                        let client_addr = packet.addr();
+                        if let Some(index) = self.clients.iter().position(|x| x == &client_addr) {
+                            self.move_player(index + 1, key);
+                        } else {
                             self.socket
                                 .send(Packet::reliable_unordered(
-                                    addr,
-                                    serialize::<Vec<Cell>>(&ser_cells).unwrap(),
+                                    client_addr,
+                                    "connection allowed".as_bytes().to_vec(),
                                 ))
                                 .unwrap();
-                            self.clients.push(addr);
                         }
                     }
-                    SocketEvent::Timeout(_) => (),
-                    SocketEvent::Disconnect(_) => (),
                 }
+                Some(SocketEvent::Connect(addr)) => {
+                    if self.clients.len() < 3 {
+                        println!("CONNECTION");
+                        let ser_cells: Cell =
+                            self.cells.clone().into_iter().map(|x| x.1).collect::<Vec<Cell>>()[0]
+                                .clone();
+                        self.socket
+                            .send(Packet::reliable_unordered(
+                                addr,
+                                serialize::<Cell>(&ser_cells).unwrap(),
+                            ))
+                            .unwrap();
+                        self.clients.push(addr);
+                    }
+                }
+                _ => (),
             }
         }
         let mut mesh = Mesh::new();
         frame.clear(Color::BLACK);
-        self.cells.draw(&mut mesh);
+        if self.server_addr.is_none() {
+            self.cells.draw(&mut mesh);
+        } else {
+            self.v_cells.draw(&mut mesh);
+        }
         self.players.draw(&mut mesh);
         self.goal.draw(&mut mesh);
         mesh.draw(&mut frame.as_target());
