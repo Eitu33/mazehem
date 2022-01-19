@@ -190,24 +190,31 @@ impl Game for Mazehem {
                     serialize::<SerKey>(&self.last_key).unwrap(),
                 ))
                 .expect("this should send");
-            // following could be useful
-            // let ip = packet.addr().ip();
-            // println!("Received {:?} from {:?}", key, ip);
         } else {
             self.move_player(0, self.last_key.clone());
             if let Some(socket_event) = self.socket.recv() {
                 match socket_event {
                     SocketEvent::Packet(packet) => {
                         let key = deserialize::<SerKey>(packet.payload()).unwrap();
-                        self.move_player(1, key);
+                        let client_addr = packet.addr();
+                        if let Some(index) = self.clients.iter().position(|x| x == &client_addr) {
+                            self.move_player(index + 1, key);
+                        } else {
+                            self.socket
+                                .send(Packet::reliable_unordered(
+                                    client_addr,
+                                    "connection allowed".as_bytes().to_vec(),
+                                ))
+                                .unwrap();
+                        }
                     }
-                    SocketEvent::Connect(addr) => self.clients.push(addr),
-                    SocketEvent::Timeout(addr) => println!("client ip {} timed out", addr),
-                    SocketEvent::Disconnect(addr) => {
-                        let index = self.clients.iter().position(|x| x == &addr).unwrap();
-                        // note: this could changes indexes and player control
-                        self.clients.remove(index);
+                    SocketEvent::Connect(addr) => {
+                        if self.clients.len() < 3 {
+                            self.clients.push(addr)
+                        }
                     }
+                    SocketEvent::Timeout(_) => (),
+                    SocketEvent::Disconnect(_) => (),
                 }
             }
         }
