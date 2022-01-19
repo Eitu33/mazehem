@@ -4,7 +4,7 @@ use crate::drawable::Drawable;
 use crate::goals::Goals;
 use crate::input::GameInput;
 use crate::maze::Maze;
-use crate::player::Player;
+use crate::player::{init_players, Player};
 use bincode::{deserialize, serialize};
 use coffee::graphics::{Color, Frame, Mesh, Window};
 use coffee::input::keyboard::KeyCode;
@@ -20,18 +20,16 @@ use std::net::SocketAddr;
 use std::time::Instant;
 
 // TODO: make sure the given ip is valid
-// TODO: server authority
 // TODO: send maze
 // TODO: encrypt connections
-// TODO: add clients version
 
 const WIDTH: usize = 30;
 const HEIGHT: usize = 30;
 
 pub struct Mazehem {
     cells: IndexMap<Coord, Cell>,
-    last_key: Option<KeyCode>,
-    player: Player,
+    last_key: SerKey,
+    players: Vec<Player>,
     goals: Goals,
     socket: Socket,
     clients: Vec<SocketAddr>,
@@ -61,12 +59,10 @@ fn handle_args() -> coffee::Result<Option<SocketAddr>> {
 impl Mazehem {
     fn new() -> coffee::Result<Mazehem> {
         let server_addr = handle_args()?;
-        let mut player = Player::new(1);
-        player.init();
         Ok(Mazehem {
             cells: Maze::new(WIDTH, HEIGHT).generate(),
-            last_key: None,
-            player,
+            last_key: SerKey::Undefined,
+            players: init_players(),
             goals: Goals::new(vec![Coord::new(WIDTH - 1, HEIGHT - 1)]),
             socket: if server_addr.is_some() {
                 Socket::bind("0.0.0.0:7070").unwrap()
@@ -78,54 +74,92 @@ impl Mazehem {
         })
     }
 
-    fn move_allowed(&self, to: &Coord) -> bool {
+    fn move_allowed(&self, i: usize, to: &Coord) -> bool {
         if !to.out_of_bounds(WIDTH, HEIGHT) {
-            self.cells.get(&self.player.coord).unwrap().n.contains(to)
-                || self.cells.get(to).unwrap().n.contains(&self.player.coord)
+            self.cells
+                .get(&self.players[i].coord)
+                .unwrap()
+                .n
+                .contains(to)
+                || self
+                    .cells
+                    .get(to)
+                    .unwrap()
+                    .n
+                    .contains(&self.players[i].coord)
         } else {
             false
         }
     }
 
-    fn move_player(&mut self) {
-        match self.last_key {
-            Some(KeyCode::Right)
-                if self.move_allowed(&Coord::new(
-                    self.player.coord.x.saturating_add(1),
-                    self.player.coord.y,
-                )) =>
+    fn move_player(&mut self, i: usize, key: SerKey) {
+        match key {
+            SerKey::Right
+                if self.move_allowed(
+                    i,
+                    &Coord::new(
+                        self.players[i].coord.x.saturating_add(1),
+                        self.players[i].coord.y,
+                    ),
+                ) =>
             {
-                self.player.coord.x += 1;
-                self.last_key = None;
+                self.players[i].coord.x += 1;
             }
-            Some(KeyCode::Down)
-                if self.move_allowed(&Coord::new(
-                    self.player.coord.x,
-                    self.player.coord.y.saturating_add(1),
-                )) =>
+            SerKey::Down
+                if self.move_allowed(
+                    i,
+                    &Coord::new(
+                        self.players[i].coord.x,
+                        self.players[i].coord.y.saturating_add(1),
+                    ),
+                ) =>
             {
-                self.player.coord.y += 1;
-                self.last_key = None;
+                self.players[i].coord.y += 1;
             }
-            Some(KeyCode::Left)
-                if self.move_allowed(&Coord::new(
-                    self.player.coord.x.saturating_sub(1),
-                    self.player.coord.y,
-                )) =>
+            SerKey::Left
+                if self.move_allowed(
+                    i,
+                    &Coord::new(
+                        self.players[i].coord.x.saturating_sub(1),
+                        self.players[i].coord.y,
+                    ),
+                ) =>
             {
-                self.player.coord.x -= 1;
-                self.last_key = None;
+                self.players[i].coord.x -= 1;
             }
-            Some(KeyCode::Up)
-                if self.move_allowed(&Coord::new(
-                    self.player.coord.x,
-                    self.player.coord.y.saturating_sub(1),
-                )) =>
+            SerKey::Up
+                if self.move_allowed(
+                    i,
+                    &Coord::new(
+                        self.players[i].coord.x,
+                        self.players[i].coord.y.saturating_sub(1),
+                    ),
+                ) =>
             {
-                self.player.coord.y -= 1;
-                self.last_key = None;
+                self.players[i].coord.y -= 1;
             }
             _ => (),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SerKey {
+    Undefined,
+    Right,
+    Down,
+    Left,
+    Up,
+}
+
+impl From<KeyCode> for SerKey {
+    fn from(key: KeyCode) -> SerKey {
+        match key {
+            KeyCode::Right => SerKey::Right,
+            KeyCode::Left => SerKey::Left,
+            KeyCode::Down => SerKey::Down,
+            KeyCode::Up => SerKey::Up,
+            _ => SerKey::Undefined,
         }
     }
 }
@@ -142,52 +176,29 @@ impl Game for Mazehem {
     fn interact(&mut self, input: &mut GameInput, _window: &mut Window) {
         if input.keys_pressed.len() != 0 {
             let key = input.keys_pressed[0];
-            match key {
-                KeyCode::Right => {
-                    self.last_key = Some(key);
-                }
-                KeyCode::Left => {
-                    self.last_key = Some(key);
-                }
-                KeyCode::Down => {
-                    self.last_key = Some(key);
-                }
-                KeyCode::Up => {
-                    self.last_key = Some(key);
-                }
-                _ => (),
-            }
+            self.last_key = SerKey::from(key);
         }
     }
 
     fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
-        frame.clear(Color::BLACK);
-        self.move_player();
-        let mut mesh = Mesh::new();
-        let mut players: Vec<Player> = Vec::new();
-
         self.socket.manual_poll(Instant::now());
         if let Some(addr) = self.server_addr {
+            self.move_player(1, self.last_key.clone());
             self.socket
                 .send(Packet::reliable_unordered(
                     addr,
-                    "Hello server!".as_bytes().to_vec(),
+                    serialize::<SerKey>(&self.last_key).unwrap(),
                 ))
                 .expect("This should send");
         } else {
+            self.move_player(0, self.last_key.clone());
             if let Some(socket_event) = self.socket.recv() {
                 match socket_event {
                     SocketEvent::Packet(packet) => {
-                        let msg = String::from_utf8_lossy(packet.payload());
+                        let key = deserialize::<SerKey>(packet.payload()).unwrap();
                         let ip = packet.addr().ip();
-                        println!("Received {:?} from {:?}", msg, ip);
-
-                        self.socket
-                            .send(Packet::reliable_unordered(
-                                packet.addr(),
-                                "Copy that!".as_bytes().to_vec(),
-                            ))
-                            .expect("This should send");
+                        println!("Received {:?} from {:?}", key, ip);
+                        self.move_player(1, key);
                     }
                     SocketEvent::Connect(addr) => {
                         println!("ip = {} connected", addr);
@@ -202,12 +213,11 @@ impl Game for Mazehem {
                 }
             }
         }
-
-        players.push(self.player.clone());
-        // println!("PLAYERS LIST: {:#?}", players);
+        let mut mesh = Mesh::new();
+        frame.clear(Color::BLACK);
         self.cells.draw(&mut mesh);
         // self.goals.draw(&mut mesh);
-        players.draw(&mut mesh);
+        self.players.draw(&mut mesh);
         mesh.draw(&mut frame.as_target());
     }
 }
