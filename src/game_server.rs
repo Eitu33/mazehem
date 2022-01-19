@@ -165,7 +165,14 @@ impl Game for Mazehem {
         let mut players: Vec<Player> = Vec::new();
 
         self.socket.manual_poll(Instant::now());
-        if self.server_addr.is_none() {
+        if let Some(addr) = self.server_addr {
+            self.socket
+                .send(Packet::reliable_unordered(
+                    addr,
+                    "Hello server!".as_bytes().to_vec(),
+                ))
+                .expect("This should send");
+        } else {
             if let Some(socket_event) = self.socket.recv() {
                 match socket_event {
                     SocketEvent::Packet(packet) => {
@@ -180,9 +187,13 @@ impl Game for Mazehem {
                             ))
                             .expect("This should send");
                     }
-                    SocketEvent::Connect(addr) => self.clients.push(addr),
+                    SocketEvent::Connect(addr) => {
+                        println!("ip = {} connected", addr);
+                        self.clients.push(addr);
+                    }
                     SocketEvent::Timeout(addr) => println!("ip = {} timed out", addr),
                     SocketEvent::Disconnect(addr) => {
+                        println!("ip = {} disconnected", addr);
                         let index = self.clients.iter().position(|x| x == &addr).unwrap();
                         self.clients.remove(index);
                     }
