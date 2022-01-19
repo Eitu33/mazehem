@@ -128,13 +128,6 @@ impl Mazehem {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-enum Data {
-    Player(Player),
-    SocketAddr(SocketAddr),
-    Cells(Vec<Cell>),
-}
-
 #[allow(unused_must_use)]
 impl Game for Mazehem {
     type Input = CustomInput;
@@ -172,25 +165,27 @@ impl Game for Mazehem {
         let mut players: Vec<Player> = Vec::new();
 
         self.socket.manual_poll(Instant::now());
-        if let Some(socket_event) = self.socket.recv() {
-            match socket_event {
-                SocketEvent::Packet(packet) => {
-                    let msg = String::from_utf8_lossy(packet.payload());
-                    let ip = packet.addr().ip();
-                    println!("Received {:?} from {:?}", msg, ip);
+        if self.server_addr.is_none() {
+            if let Some(socket_event) = self.socket.recv() {
+                match socket_event {
+                    SocketEvent::Packet(packet) => {
+                        let msg = String::from_utf8_lossy(packet.payload());
+                        let ip = packet.addr().ip();
+                        println!("Received {:?} from {:?}", msg, ip);
 
-                    self.socket
-                        .send(Packet::reliable_unordered(
-                            packet.addr(),
-                            "Copy that!".as_bytes().to_vec(),
-                        ))
-                        .expect("This should send");
-                }
-                SocketEvent::Connect(addr) => self.clients.push(addr),
-                SocketEvent::Timeout(addr) => println!("ip = {} timed out", addr),
-                SocketEvent::Disconnect(addr) => {
-                    let index = self.clients.iter().position(|x| x == &addr).unwrap();
-                    self.clients.remove(index);
+                        self.socket
+                            .send(Packet::reliable_unordered(
+                                packet.addr(),
+                                "Copy that!".as_bytes().to_vec(),
+                            ))
+                            .expect("This should send");
+                    }
+                    SocketEvent::Connect(addr) => self.clients.push(addr),
+                    SocketEvent::Timeout(addr) => println!("ip = {} timed out", addr),
+                    SocketEvent::Disconnect(addr) => {
+                        let index = self.clients.iter().position(|x| x == &addr).unwrap();
+                        self.clients.remove(index);
+                    }
                 }
             }
         }
