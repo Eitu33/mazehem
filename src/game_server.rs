@@ -144,8 +144,7 @@ impl Game for Mazehem {
         if let Some(socket_event) = self.socket.recv() {
             match socket_event {
                 SocketEvent::Packet(packet) => {
-                    let msg = packet.payload();
-                    let msg = String::from_utf8_lossy(msg);
+                    let msg = String::from_utf8_lossy(packet.payload());
                     let ip = packet.addr().ip();
                     println!("Received {:?} from {:?}", msg, ip);
 
@@ -156,9 +155,12 @@ impl Game for Mazehem {
                         ))
                         .expect("This should send");
                 }
-                SocketEvent::Connect(connect_event) => { /* a client connected */ }
-                SocketEvent::Timeout(timeout_event) => { /* a client timed out */ }
-                SocketEvent::Disconnect(disconnect_event) => { /* a client disconnected */ }
+                SocketEvent::Connect(addr) => self.clients.push(addr),
+                SocketEvent::Timeout(addr) => println!("ip = {} timed out", addr),
+                SocketEvent::Disconnect(addr) => {
+                    let index = self.clients.iter().position(|x| x == &addr).unwrap();
+                    self.clients.remove(index);
+                }
             }
         }
 
