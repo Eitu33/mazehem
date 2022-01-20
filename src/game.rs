@@ -16,7 +16,6 @@ use serde_derive::{Deserialize, Serialize};
 use std::env;
 use std::io;
 use std::net::SocketAddr;
-use std::ops::RangeBounds;
 use std::time::Instant;
 
 // TODO: make sure the given ip is valid
@@ -186,11 +185,8 @@ impl Game for Mazehem {
             while let Some(pkt) = self.socket.recv() {
                 match pkt {
                     SocketEvent::Packet(packet) => {
-                        if let (Ok(cell), len) =
-                            (deserialize::<Cell>(packet.payload()), self.v_cells.len())
-                        {
-                            println!("LEN = {}", len);
-                            self.v_cells.push(cell);
+                        if let Ok(cells) = deserialize::<Vec<Cell>>(packet.payload()) {
+                            self.v_cells = cells;
                         }
                     }
                     _ => (),
@@ -220,30 +216,19 @@ impl Game for Mazehem {
                                 .expect("should send");
                         }
                     }
-                    Ok(Data::Index(index)) => {
-                        let client_addr = packet.addr();
-                        for i in index..(index + 100) {
-                            self.socket
-                                .send(Packet::reliable_unordered(
-                                    client_addr,
-                                    serialize::<Cell>(&self.cells[i]).unwrap(),
-                                ))
-                                .expect("should send");
-                        }
-                    }
                     _ => (),
                 },
                 Some(SocketEvent::Connect(addr)) => {
                     if self.clients.len() < 3 {
                         println!("CONNECTION SUCCEEDED");
-                        for c in self.cells {
-                            self.socket
-                                .send(Packet::reliable_unordered(
-                                    addr,
-                                    serialize::<Cell>(&self.c.1).unwrap(),
-                                ))
-                                .expect("should send");
-                        }
+                        let ser_cells: Vec<Cell> =
+                            self.cells.clone().into_iter().map(|x| x.1).collect::<Vec<Cell>>();
+                        self.socket
+                            .send(Packet::reliable_unordered(
+                                addr,
+                                serialize::<Vec<Cell>>(&ser_cells).unwrap(),
+                            ))
+                            .unwrap();
                         self.clients.push(addr);
                     }
                 }
