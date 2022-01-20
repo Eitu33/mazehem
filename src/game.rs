@@ -18,7 +18,6 @@ use std::io;
 use std::net::SocketAddr;
 use std::time::Instant;
 
-// TODO: make sure the given ip is valid
 // TODO: encrypt connections
 
 const WIDTH: usize = 30;
@@ -166,6 +165,7 @@ impl From<KeyCode> for SerKey {
 pub enum Data {
     Cell(Cell),
     Key(SerKey),
+    Players(Vec<Player>),
 }
 
 #[allow(unused_must_use)]
@@ -204,13 +204,17 @@ impl Game for Mazehem {
             // client udp code
             while let Some(event) = self.socket.recv() {
                 match event {
-                    SocketEvent::Packet(packet) => {
-                        if let Ok(cell) = deserialize::<Cell>(packet.payload()) {
+                    SocketEvent::Packet(packet) => match deserialize::<Data>(packet.payload()) {
+                        Ok(Data::Cell(cell)) => {
                             if self.v_cells.len() < (WIDTH * HEIGHT) * 2 {
                                 self.v_cells.push(cell);
                             }
                         }
-                    }
+                        Ok(Data::Players(players)) => {
+                            self.players = players.into_iter().map(|p| p.colored()).collect()
+                        }
+                        _ => (),
+                    },
                     _ => (),
                 }
             }
@@ -222,7 +226,6 @@ impl Game for Mazehem {
                 .expect("should send");
         } else {
             // host udp code
-            self.move_player(0, self.last_key.clone());
             while let Some(event) = self.socket.recv() {
                 match event {
                     SocketEvent::Packet(packet) => match deserialize::<Data>(packet.payload()) {
@@ -249,7 +252,7 @@ impl Game for Mazehem {
                                 self.socket
                                     .send(Packet::reliable_unordered(
                                         addr,
-                                        serialize::<Cell>(c.1).unwrap(),
+                                        serialize::<Data>(&Data::Cell(c.1.clone())).unwrap(),
                                     ))
                                     .expect("should send");
                             }
@@ -261,6 +264,15 @@ impl Game for Mazehem {
                     }
                     _ => (),
                 }
+            }
+            self.move_player(0, self.last_key.clone());
+            for addr in &self.clients {
+                self.socket
+                    .send(Packet::reliable_unordered(
+                        *addr,
+                        serialize::<Data>(&Data::Players(self.players.clone())).unwrap(),
+                    ))
+                    .expect("should send");
             }
         }
     }
