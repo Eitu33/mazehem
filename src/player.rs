@@ -13,7 +13,7 @@ pub struct Player {
 
 pub fn init_players() -> Vec<Player> {
     let mut players = Vec::new();
-    for i in 1..4 {
+    for i in 1..5 {
         let mut player = Player::new(i);
         player.init_color();
         players.push(player);
@@ -32,10 +32,10 @@ impl Player {
         Player {
             number,
             coord: match number {
-                _ => Coord::new(0, 0),
                 2 => Coord::new(29, 0),
                 3 => Coord::new(0, 29),
                 4 => Coord::new(29, 29),
+                _ => Coord::new(0, 0),
             },
             color: None,
         }
@@ -43,10 +43,10 @@ impl Player {
 
     pub fn init_color(&mut self) {
         self.color = Some(match self.number {
-            _ => Color::RED,
             2 => Color::BLUE,
             3 => Color::GREEN,
             4 => Color::from_rgb_u32(0xDEC20B),
+            _ => Color::RED,
         });
     }
 }

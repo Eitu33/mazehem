@@ -70,7 +70,7 @@ impl Mazehem {
                 Socket::bind_with_config(
                     "0.0.0.0:9090",
                     laminar::Config {
-                        max_packets_in_flight: 901,
+                        max_packets_in_flight: ((WIDTH * HEIGHT) * 2) as u16,
                         ..Default::default()
                     },
                 )
@@ -187,9 +187,9 @@ impl Game for Mazehem {
     fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
         self.socket.manual_poll(Instant::now());
         if let Some(addr) = self.server_addr {
-            // experimental here
-            while let Some(pkt) = self.socket.recv() {
-                match pkt {
+            // client udp code
+            while let Some(event) = self.socket.recv() {
+                match event {
                     SocketEvent::Packet(packet) => {
                         if let Ok(cell) = deserialize::<Cell>(packet.payload()) {
                             if self.v_cells.len() < (WIDTH * HEIGHT) * 2 {
@@ -209,39 +209,44 @@ impl Game for Mazehem {
         } else {
             // host udp code
             self.move_player(0, self.last_key.clone());
-            match self.socket.recv() {
-                Some(SocketEvent::Packet(packet)) => match deserialize::<Data>(packet.payload()) {
-                    Ok(Data::Key(key)) => {
-                        let client_addr = packet.addr();
-                        if let Some(index) = self.clients.iter().position(|x| x == &client_addr) {
-                            self.move_player(index + 1, key);
-                        } else {
-                            self.socket
-                                .send(Packet::reliable_unordered(
-                                    client_addr,
-                                    "connection allowed".as_bytes().to_vec(),
-                                ))
-                                .expect("should send");
+            while let Some(event) = self.socket.recv() {
+                match event {
+                    SocketEvent::Packet(packet) => match deserialize::<Data>(packet.payload()) {
+                        Ok(Data::Key(key)) => {
+                            let client_addr = packet.addr();
+                            if let Some(index) = self.clients.iter().position(|x| x == &client_addr)
+                            {
+                                self.move_player(index + 1, key);
+                            } else {
+                                self.socket
+                                    .send(Packet::reliable_unordered(
+                                        client_addr,
+                                        "connection allowed".as_bytes().to_vec(),
+                                    ))
+                                    .expect("should send");
+                            }
                         }
+                        _ => (),
+                    },
+                    SocketEvent::Connect(addr) => {
+                        if self.clients.len() < 3 {
+                            println!("client ip {} connected and was registered", addr);
+                            for c in &self.cells {
+                                self.socket
+                                    .send(Packet::reliable_unordered(
+                                        addr,
+                                        serialize::<Cell>(c.1).unwrap(),
+                                    ))
+                                    .expect("should send");
+                            }
+                            self.clients.push(addr);
+                        }
+                    }
+                    SocketEvent::Disconnect(addr) => {
+                        println!("client ip {} disconnected", addr)
                     }
                     _ => (),
-                },
-                Some(SocketEvent::Connect(addr)) => {
-                    if self.clients.len() < 3 {
-                        println!("CONNECTION SUCCEEDED");
-                        for c in &self.cells {
-                            self.socket
-                                .send(Packet::reliable_unordered(
-                                    addr,
-                                    serialize::<Cell>(c.1).unwrap(),
-                                ))
-                                .expect("should send");
-                        }
-                        self.clients.push(addr);
-                    }
                 }
-                Some(SocketEvent::Disconnect(addr)) => println!("client ip {} disconnected", addr),
-                _ => (),
             }
         }
 
