@@ -272,6 +272,8 @@ impl Game for Mazehem {
         if input.keys_pressed.len() != 0 {
             let key = input.keys_pressed[0];
             self.last_key = SerKey::from(key);
+        } else {
+            self.last_key = SerKey::Undefined;
         }
     }
 
