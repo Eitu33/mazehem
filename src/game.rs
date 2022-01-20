@@ -166,7 +166,6 @@ impl From<KeyCode> for SerKey {
 pub enum Data {
     Cell(Cell),
     Key(SerKey),
-    Index(usize),
 }
 
 #[allow(unused_must_use)]
@@ -241,9 +240,7 @@ impl Game for Mazehem {
                         self.clients.push(addr);
                     }
                 }
-                Some(SocketEvent::Disconnect(_addr)) => {
-                    println!("DISCONNECT");
-                }
+                Some(SocketEvent::Disconnect(addr)) => println!("client ip {} disconnected", addr),
                 _ => (),
             }
         }
