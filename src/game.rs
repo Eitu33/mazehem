@@ -19,7 +19,6 @@ use std::net::SocketAddr;
 use std::time::Instant;
 
 // TODO: make sure the given ip is valid
-// TODO: send maze
 // TODO: encrypt connections
 
 const WIDTH: usize = 30;
@@ -176,24 +175,23 @@ impl Game for Mazehem {
         self.socket.manual_poll(Instant::now());
         if let Some(addr) = self.server_addr {
             // experimental here
-            // note: Vec<T> can be sent (too large?)
-            match self.socket.recv() {
-                Some(SocketEvent::Packet(packet)) => {
-                    if let Ok(cells) = deserialize::<Cell>(packet.payload()) {
-                        println!("CELL RECEIVED");
-                        self.v_cells = vec![cells];
+            while let Some(pkt) = self.socket.recv() {
+                match pkt {
+                    SocketEvent::Packet(packet) => {
+                        if let Ok(cell) = deserialize::<Cell>(packet.payload()) {
+                            println!("LEN = {}", self.v_cells.len());
+                            self.v_cells.push(cell);
+                        }
                     }
+                    _ => (),
                 }
-                _ => (),
             }
-            // note: need to receive player positions & move should not be done
-            self.move_player(1, self.last_key.clone());
             self.socket
                 .send(Packet::reliable_unordered(
                     addr,
                     serialize::<SerKey>(&self.last_key).unwrap(),
                 ))
-                .expect("this should send");
+                .expect("should send");
         } else {
             // host udp code
             self.move_player(0, self.last_key.clone());
@@ -209,28 +207,28 @@ impl Game for Mazehem {
                                     client_addr,
                                     "connection allowed".as_bytes().to_vec(),
                                 ))
-                                .unwrap();
+                                .expect("should send");
                         }
                     }
                 }
                 Some(SocketEvent::Connect(addr)) => {
                     if self.clients.len() < 3 {
                         println!("CONNECTION SUCCEEDED");
-                        let ser_cells: Cell =
-                            self.cells.clone().into_iter().map(|x| x.1).collect::<Vec<Cell>>()[0]
-                                .clone();
-                        self.socket
-                            .send(Packet::reliable_unordered(
-                                addr,
-                                serialize::<Cell>(&ser_cells).unwrap(),
-                            ))
-                            .unwrap();
+                        for cell in &self.cells {
+                            self.socket
+                                .send(Packet::reliable_unordered(
+                                    addr,
+                                    serialize::<Cell>(cell.1).unwrap(),
+                                ))
+                                .expect("should send");
+                        }
                         self.clients.push(addr);
                     }
                 }
                 _ => (),
             }
         }
+
         let mut mesh = Mesh::new();
         frame.clear(Color::BLACK);
         if self.server_addr.is_none() {
