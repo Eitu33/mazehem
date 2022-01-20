@@ -67,7 +67,14 @@ impl Mazehem {
             socket: if server_addr.is_some() {
                 Socket::bind("0.0.0.0:7070").unwrap()
             } else {
-                Socket::bind("0.0.0.0:9090").unwrap()
+                Socket::bind_with_config(
+                    "0.0.0.0:9090",
+                    laminar::Config {
+                        max_packets_in_flight: 901,
+                        ..Default::default()
+                    },
+                )
+                .unwrap()
             },
             clients: Vec::new(),
             server_addr,
@@ -185,8 +192,10 @@ impl Game for Mazehem {
             while let Some(pkt) = self.socket.recv() {
                 match pkt {
                     SocketEvent::Packet(packet) => {
-                        if let Ok(cells) = deserialize::<Vec<Cell>>(packet.payload()) {
-                            self.v_cells = cells;
+                        if let Ok(cell) = deserialize::<Cell>(packet.payload()) {
+                            if self.v_cells.len() < (WIDTH * HEIGHT) * 2 {
+                                self.v_cells.push(cell);
+                            }
                         }
                     }
                     _ => (),
@@ -221,14 +230,14 @@ impl Game for Mazehem {
                 Some(SocketEvent::Connect(addr)) => {
                     if self.clients.len() < 3 {
                         println!("CONNECTION SUCCEEDED");
-                        let ser_cells: Vec<Cell> =
-                            self.cells.clone().into_iter().map(|x| x.1).collect::<Vec<Cell>>();
-                        self.socket
-                            .send(Packet::reliable_unordered(
-                                addr,
-                                serialize::<Vec<Cell>>(&ser_cells).unwrap(),
-                            ))
-                            .unwrap();
+                        for c in &self.cells {
+                            self.socket
+                                .send(Packet::reliable_unordered(
+                                    addr,
+                                    serialize::<Cell>(c.1).unwrap(),
+                                ))
+                                .expect("should send");
+                        }
                         self.clients.push(addr);
                     }
                 }
