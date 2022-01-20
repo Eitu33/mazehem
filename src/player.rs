@@ -1,25 +1,53 @@
 use crate::coord::Coord;
 use crate::drawable::Drawable;
 use coffee::graphics::{Color, Mesh, Rectangle, Shape};
+use serde_derive::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Player {
+    pub number: usize,
     pub coord: Coord,
-    pub color: Color,
+    #[serde(skip)]
+    pub color: Option<Color>,
 }
 
 pub fn init_players() -> Vec<Player> {
-    vec![
-        Player::new(Coord::new(0, 0), Color::RED),
-        Player::new(Coord::new(29, 0), Color::BLUE),
-        Player::new(Coord::new(0, 29), Color::GREEN),
-        Player::new(Coord::new(29, 29), Color::from_rgb_u32(0xDEC20B)),
-    ]
+    let mut players = Vec::new();
+    for i in 1..4 {
+        let mut player = Player::new(i);
+        player.init_color();
+        players.push(player);
+    }
+    players
+}
+
+pub fn init_colors(players: Vec<Player>) {
+    for mut p in players {
+        p.init_color();
+    }
 }
 
 impl Player {
-    pub fn new(coord: Coord, color: Color) -> Player {
-        Player { coord, color }
+    pub fn new(number: usize) -> Player {
+        Player {
+            number,
+            coord: match number {
+                _ => Coord::new(0, 0),
+                2 => Coord::new(29, 0),
+                3 => Coord::new(0, 29),
+                4 => Coord::new(29, 29),
+            },
+            color: None,
+        }
+    }
+
+    pub fn init_color(&mut self) {
+        self.color = Some(match self.number {
+            _ => Color::RED,
+            2 => Color::BLUE,
+            3 => Color::GREEN,
+            4 => Color::from_rgb_u32(0xDEC20B),
+        });
     }
 }
 
@@ -32,7 +60,7 @@ impl Drawable for Player {
                 width: 10.0,
                 height: 10.0,
             }),
-            self.color,
+            self.color.unwrap_or(Color::WHITE),
         );
     }
 }
