@@ -18,7 +18,10 @@ use std::io;
 use std::net::SocketAddr;
 use std::time::Instant;
 
+// TODO: split game file content
 // TODO: encrypt connections
+// TODO: async receiving?
+// TODO: send maze in 1 packet?
 
 const WIDTH: usize = 30;
 const HEIGHT: usize = 30;
