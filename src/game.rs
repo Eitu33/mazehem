@@ -16,6 +16,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::env;
 use std::io;
 use std::net::SocketAddr;
+use std::ops::RangeBounds;
 use std::time::Instant;
 
 // TODO: make sure the given ip is valid
@@ -155,6 +156,13 @@ impl From<KeyCode> for SerKey {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Data {
+    Cell(Cell),
+    Key(SerKey),
+    Index(usize),
+}
+
 #[allow(unused_must_use)]
 impl Game for Mazehem {
     type Input = GameInput;
@@ -178,8 +186,10 @@ impl Game for Mazehem {
             while let Some(pkt) = self.socket.recv() {
                 match pkt {
                     SocketEvent::Packet(packet) => {
-                        if let Ok(cell) = deserialize::<Cell>(packet.payload()) {
-                            println!("LEN = {}", self.v_cells.len());
+                        if let (Ok(cell), len) =
+                            (deserialize::<Cell>(packet.payload()), self.v_cells.len())
+                        {
+                            println!("LEN = {}", len);
                             self.v_cells.push(cell);
                         }
                     }
@@ -189,15 +199,15 @@ impl Game for Mazehem {
             self.socket
                 .send(Packet::reliable_unordered(
                     addr,
-                    serialize::<SerKey>(&self.last_key).unwrap(),
+                    serialize::<Data>(&Data::Key(self.last_key.clone())).unwrap(),
                 ))
                 .expect("should send");
         } else {
             // host udp code
             self.move_player(0, self.last_key.clone());
             match self.socket.recv() {
-                Some(SocketEvent::Packet(packet)) => {
-                    if let Ok(key) = deserialize::<SerKey>(packet.payload()) {
+                Some(SocketEvent::Packet(packet)) => match deserialize::<Data>(packet.payload()) {
+                    Ok(Data::Key(key)) => {
                         let client_addr = packet.addr();
                         if let Some(index) = self.clients.iter().position(|x| x == &client_addr) {
                             self.move_player(index + 1, key);
@@ -210,20 +220,35 @@ impl Game for Mazehem {
                                 .expect("should send");
                         }
                     }
-                }
+                    Ok(Data::Index(index)) => {
+                        let client_addr = packet.addr();
+                        for i in index..(index + 100) {
+                            self.socket
+                                .send(Packet::reliable_unordered(
+                                    client_addr,
+                                    serialize::<Cell>(&self.cells[i]).unwrap(),
+                                ))
+                                .expect("should send");
+                        }
+                    }
+                    _ => (),
+                },
                 Some(SocketEvent::Connect(addr)) => {
                     if self.clients.len() < 3 {
                         println!("CONNECTION SUCCEEDED");
-                        for cell in &self.cells {
+                        for c in self.cells {
                             self.socket
                                 .send(Packet::reliable_unordered(
                                     addr,
-                                    serialize::<Cell>(cell.1).unwrap(),
+                                    serialize::<Cell>(&self.c.1).unwrap(),
                                 ))
                                 .expect("should send");
                         }
                         self.clients.push(addr);
                     }
+                }
+                Some(SocketEvent::Disconnect(_addr)) => {
+                    println!("DISCONNECT");
                 }
                 _ => (),
             }
