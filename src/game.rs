@@ -185,6 +185,20 @@ impl Game for Mazehem {
     }
 
     fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
+        let mut mesh = Mesh::new();
+        frame.clear(Color::BLACK);
+
+        if self.server_addr.is_none() {
+            self.cells.draw(&mut mesh);
+        } else {
+            self.v_cells.draw(&mut mesh);
+        }
+        self.players.draw(&mut mesh);
+        self.goal.draw(&mut mesh);
+        mesh.draw(&mut frame.as_target());
+    }
+
+    fn update(&mut self, _window: &Window) {
         self.socket.manual_poll(Instant::now());
         if let Some(addr) = self.server_addr {
             // client udp code
@@ -249,16 +263,5 @@ impl Game for Mazehem {
                 }
             }
         }
-
-        let mut mesh = Mesh::new();
-        frame.clear(Color::BLACK);
-        if self.server_addr.is_none() {
-            self.cells.draw(&mut mesh);
-        } else {
-            self.v_cells.draw(&mut mesh);
-        }
-        self.players.draw(&mut mesh);
-        self.goal.draw(&mut mesh);
-        mesh.draw(&mut frame.as_target());
     }
 }
