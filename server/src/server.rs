@@ -10,9 +10,6 @@ use types::data::Data;
 use types::input::SerKey;
 use types::player::{init_players, Player};
 
-// TODO: directly associate ips to players
-// TODO: encrypt connections
-
 const WIDTH: usize = 30;
 const HEIGHT: usize = 30;
 
@@ -72,18 +69,19 @@ impl Server {
     }
 
     fn on_connected_client(&mut self, addr: SocketAddr) {
-        if self.clients.len() < 4 {
-            println!("client ip {} connected and was registered", addr);
-            let vec = self.cells.clone().into_iter().map(|x| x.1).collect::<Vec<Cell>>();
-            for chunk in vec.chunks(10) {
-                self.sender
-                    .send(Packet::reliable_unordered(
-                        addr,
-                        serialize::<Data>(&Data::Cells(chunk.to_vec())).unwrap(),
-                    ))
-                    .expect("should send");
-            }
+        println!("client ip {} connected", addr);
+        if self.clients.len() < 4 && !self.clients.contains(&addr) {
+            println!("client ip {} has been registered", addr);
             self.clients.push(addr);
+        }
+        let vec = self.cells.clone().into_iter().map(|x| x.1).collect::<Vec<Cell>>();
+        for chunk in vec.chunks(10) {
+            self.sender
+                .send(Packet::reliable_unordered(
+                    addr,
+                    serialize::<Data>(&Data::Cells(chunk.to_vec())).unwrap(),
+                ))
+                .expect("should send");
         }
     }
 
