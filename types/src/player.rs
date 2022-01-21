@@ -38,10 +38,10 @@ impl Player {
             number: self.number,
             coord: self.coord,
             color: Some(match self.number {
-                2 => Color::BLUE,
-                3 => Color::GREEN,
-                4 => Color::from_rgb_u32(0xDEC20B),
-                _ => Color::RED,
+                2 => Color::from_rgb_u32(0x0b5394),
+                3 => Color::from_rgb_u32(0x38761d),
+                4 => Color::from_rgb_u32(0xb45f06),
+                _ => Color::from_rgb_u32(0x990000),
             }),
         }
     }

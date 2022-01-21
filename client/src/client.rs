@@ -92,7 +92,7 @@ impl Game for Client {
 
     fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
         let mut mesh = Mesh::new();
-        frame.clear(Color::BLACK);
+        frame.clear(Color::from_rgb_u32(0x88a97a));
         self.cells.draw(&mut mesh);
         self.goal.draw(&mut mesh);
         self.players.draw(&mut mesh);

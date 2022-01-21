@@ -54,7 +54,7 @@ impl Drawable for Cell {
                     width,
                     height,
                 }),
-                Color::from_rgb_u32(0xC0C0C0),
+                Color::from_rgb_u32(0xecc28a),
             );
         }
     }

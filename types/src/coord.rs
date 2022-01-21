@@ -34,7 +34,7 @@ impl Drawable for Coord {
                 width: 10.0,
                 height: 10.0,
             }),
-            Color::from_rgb_u32(0x8F00FF),
+            Color::from_rgb_u32(0x71ffec),
         );
     }
 }
