@@ -24,6 +24,7 @@ fn handle_args() -> coffee::Result<Option<SocketAddr>> {
         ))),
     }
 }
+
 pub struct Client {
     socket: Socket,
     host_addr: Option<SocketAddr>,
