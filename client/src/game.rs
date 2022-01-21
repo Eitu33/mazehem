@@ -3,13 +3,13 @@ use coffee::graphics::{Color, Frame, Mesh, Window};
 use coffee::load::Task;
 use coffee::{Game, Timer};
 use laminar::{Packet, Socket, SocketEvent};
-use serde_derive::{Deserialize, Serialize};
 use std::env;
 use std::io;
 use std::net::SocketAddr;
 use std::time::Instant;
 use types::cell::Cell;
 use types::coord::Coord;
+use types::data::Data;
 use types::drawable::Drawable;
 use types::input::{GameInput, SerKey};
 use types::player::{init_players, Player};
@@ -34,13 +34,6 @@ pub struct Mazehem {
     socket: Socket,
     cells: Vec<Cell>,
     host_addr: Option<SocketAddr>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Data {
-    Cell(Cell),
-    Key(SerKey),
-    Players(Vec<Player>),
 }
 
 impl Mazehem {

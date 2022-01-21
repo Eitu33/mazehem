@@ -3,11 +3,11 @@ use bincode::{deserialize, serialize};
 use indexmap::IndexMap;
 use laminar::{Packet, Socket, SocketEvent};
 use local_ip_address::local_ip;
-use serde_derive::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::time::Instant;
 use types::cell::Cell;
 use types::coord::Coord;
+use types::data::Data;
 use types::input::SerKey;
 use types::player::{init_players, Player};
 
@@ -24,13 +24,6 @@ pub struct Server {
     socket: Socket,
     cells: IndexMap<Coord, Cell>,
     clients: Vec<SocketAddr>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Data {
-    Cell(Cell),
-    Key(SerKey),
-    Players(Vec<Player>),
 }
 
 impl Server {
