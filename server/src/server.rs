@@ -1,21 +1,15 @@
-use crate::cell::Cell;
-use crate::coord::Coord;
-use crate::drawable::Drawable;
-use crate::input::{GameInput, SerKey};
 use crate::maze::Maze;
-use crate::player::{init_players, Player};
 use bincode::{deserialize, serialize};
-use coffee::graphics::{Color, Frame, Mesh, Window};
-use coffee::load::Task;
-use coffee::{Game, Timer};
 use indexmap::IndexMap;
 use laminar::{Packet, Socket, SocketEvent};
 use local_ip_address::local_ip;
 use serde_derive::{Deserialize, Serialize};
-use std::env;
-use std::io;
 use std::net::SocketAddr;
 use std::time::Instant;
+use types::cell::Cell;
+use types::coord::Coord;
+use types::input::SerKey;
+use types::player::{init_players, Player};
 
 // TODO: split game file content
 // TODO: encrypt connections
@@ -25,30 +19,11 @@ use std::time::Instant;
 const WIDTH: usize = 30;
 const HEIGHT: usize = 30;
 
-fn handle_args() -> coffee::Result<Option<SocketAddr>> {
-    let args: Vec<String> = env::args().collect();
-    match args.len() {
-        2 if args[1] == "host" => {
-            println!("host address: {}:9090", local_ip().unwrap());
-            Ok(None)
-        }
-        3 if args[1] == "client" => Ok(Some(args[2].parse().unwrap())),
-        _ => Err(coffee::Error::IO(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "incorrect usage",
-        ))),
-    }
-}
-
-pub struct Mazehem {
-    cells: IndexMap<Coord, Cell>,
-    v_cells: Vec<Cell>,
-    last_key: SerKey,
+pub struct Server {
     players: Vec<Player>,
-    goal: Coord,
     socket: Socket,
+    cells: IndexMap<Coord, Cell>,
     clients: Vec<SocketAddr>,
-    server_addr: Option<SocketAddr>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,30 +33,22 @@ pub enum Data {
     Players(Vec<Player>),
 }
 
-impl Mazehem {
-    fn new() -> coffee::Result<Mazehem> {
-        let server_addr = handle_args()?;
-        Ok(Mazehem {
-            cells: Maze::new(WIDTH, HEIGHT).generate(),
-            v_cells: Vec::new(),
-            last_key: SerKey::Undefined,
+impl Server {
+    pub fn new() -> Server {
+        println!("server address: {}:9090", local_ip().unwrap());
+        Server {
             players: init_players(),
-            goal: Coord::new(WIDTH / 2, HEIGHT / 2),
-            socket: if server_addr.is_some() {
-                Socket::bind("0.0.0.0:7070").unwrap()
-            } else {
-                Socket::bind_with_config(
-                    "0.0.0.0:9090",
-                    laminar::Config {
-                        max_packets_in_flight: ((WIDTH * HEIGHT) * 2) as u16,
-                        ..Default::default()
-                    },
-                )
-                .unwrap()
-            },
+            socket: Socket::bind_with_config(
+                "0.0.0.0:9090",
+                laminar::Config {
+                    max_packets_in_flight: ((WIDTH * HEIGHT) * 2) as u16,
+                    ..Default::default()
+                },
+            )
+            .unwrap(),
+            cells: Maze::new(WIDTH, HEIGHT).generate(),
             clients: Vec::new(),
-            server_addr,
-        })
+        }
     }
 
     fn move_allowed(&self, i: usize, to: &Coord) -> bool {
@@ -143,42 +110,15 @@ impl Mazehem {
         }
     }
 
-    fn handle_host_packets(&mut self) {
-        while let Some(event) = self.socket.recv() {
-            match event {
-                SocketEvent::Packet(packet) => match deserialize::<Data>(packet.payload()) {
-                    Ok(Data::Cell(cell)) => {
-                        if self.v_cells.len() < (WIDTH * HEIGHT) * 2 {
-                            self.v_cells.push(cell);
-                        }
-                    }
-                    Ok(Data::Players(players)) => {
-                        self.players = players.into_iter().map(|p| p.colored()).collect()
-                    }
-                    _ => (),
-                },
-                _ => (),
-            }
-        }
-    }
-
-    fn send_inputs(&mut self) {
-        self.socket
-            .send(Packet::reliable_unordered(
-                self.server_addr.unwrap(),
-                serialize::<Data>(&Data::Key(self.last_key.clone())).unwrap(),
-            ))
-            .expect("should send");
-    }
-
-    fn handle_client_packets(&mut self) {
+    pub fn handle_received_packets(&mut self) {
+        self.socket.manual_poll(Instant::now());
         while let Some(event) = self.socket.recv() {
             match event {
                 SocketEvent::Packet(packet) => match deserialize::<Data>(packet.payload()) {
                     Ok(Data::Key(key)) => {
                         let client_addr = packet.addr();
                         if let Some(index) = self.clients.iter().position(|x| x == &client_addr) {
-                            self.move_player(index + 1, key);
+                            self.move_player(index, key);
                         } else {
                             self.socket
                                 .send(Packet::reliable_unordered(
@@ -191,7 +131,7 @@ impl Mazehem {
                     _ => (),
                 },
                 SocketEvent::Connect(addr) => {
-                    if self.clients.len() < 3 {
+                    if self.clients.len() < 4 {
                         println!("client ip {} connected and was registered", addr);
                         for c in &self.cells {
                             self.socket
@@ -212,8 +152,7 @@ impl Mazehem {
         }
     }
 
-    fn send_players(&mut self) {
-        self.move_player(0, self.last_key.clone());
+    pub fn send(&mut self) {
         for addr in &self.clients {
             self.socket
                 .send(Packet::reliable_unordered(
@@ -221,48 +160,6 @@ impl Mazehem {
                     serialize::<Data>(&Data::Players(self.players.clone())).unwrap(),
                 ))
                 .expect("should send");
-        }
-    }
-}
-
-impl Game for Mazehem {
-    type Input = GameInput;
-    type LoadingScreen = ();
-
-    fn load(_window: &Window) -> Task<Mazehem> {
-        Task::new(|| Mazehem::new())
-    }
-
-    fn interact(&mut self, input: &mut GameInput, _window: &mut Window) {
-        if input.keys_pressed.len() != 0 {
-            let key = input.keys_pressed[0];
-            self.last_key = SerKey::from(key);
-        } else {
-            self.last_key = SerKey::Undefined;
-        }
-    }
-
-    fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
-        let mut mesh = Mesh::new();
-        frame.clear(Color::BLACK);
-        if self.server_addr.is_none() {
-            self.cells.draw(&mut mesh);
-        } else {
-            self.v_cells.draw(&mut mesh);
-        }
-        self.players.draw(&mut mesh);
-        self.goal.draw(&mut mesh);
-        mesh.draw(&mut frame.as_target());
-    }
-
-    fn update(&mut self, _window: &Window) {
-        self.socket.manual_poll(Instant::now());
-        if self.server_addr.is_some() {
-            self.handle_host_packets();
-            self.send_inputs();
-        } else {
-            self.handle_client_packets();
-            self.send_players();
         }
     }
 }

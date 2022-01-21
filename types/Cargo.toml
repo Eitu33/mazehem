@@ -1,0 +1,11 @@
+[package]
+name = "types"
+version = "0.1.0"
+authors = ["Thomas Plisson <thomas.plisson@epitech.eu>"]
+edition = "2018"
+
+[dependencies]
+coffee = { version = "0.4", features = ["opengl"] }
+indexmap = "1.8.0"
+serde = "1.0"
+serde_derive = "1.0"

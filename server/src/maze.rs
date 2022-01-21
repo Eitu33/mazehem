@@ -1,5 +1,5 @@
-use crate::cell::Cell;
-use crate::coord::Coord;
+use types::cell::Cell;
+use types::coord::Coord;
 use indexmap::IndexMap;
 use rand::Rng;
 use std::collections::HashMap;

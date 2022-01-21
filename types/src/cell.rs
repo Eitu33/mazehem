@@ -4,7 +4,6 @@ use coffee::graphics::{Color, Mesh, Rectangle, Shape};
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-
 pub struct Cell {
     pub coord: Coord,
     pub n: Vec<Coord>,

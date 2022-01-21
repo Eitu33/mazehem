@@ -1,10 +1,4 @@
-mod cell;
-mod coord;
-mod drawable;
 mod game;
-mod input;
-mod maze;
-mod player;
 
 use coffee::graphics::WindowSettings;
 use coffee::Game;
@@ -19,7 +13,7 @@ fn main() {
         maximized: false,
     }) {
         Err(coffee::Error::IO(_)) => {
-            println!("usage:\n\t./mazehem client host_addr:port\n\t./mazehem host")
+            println!("/mazehem ${{host_addr}}:${{port}}")
         }
         _ => (),
     }
