@@ -12,6 +12,6 @@ fn main() {
         fullscreen: false,
         maximized: false,
     }) {
-        println!("/mazehem ${{host_addr}}:${{port}}");
+        println!("usage:\n\t./mazehem ${{host_addr}}:${{port}}");
     }
 }
