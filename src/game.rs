@@ -1,12 +1,11 @@
 use crate::cell::Cell;
 use crate::coord::Coord;
 use crate::drawable::Drawable;
-use crate::input::GameInput;
+use crate::input::{GameInput, SerKey};
 use crate::maze::Maze;
 use crate::player::{init_players, Player};
 use bincode::{deserialize, serialize};
 use coffee::graphics::{Color, Frame, Mesh, Window};
-use coffee::input::keyboard::KeyCode;
 use coffee::load::Task;
 use coffee::{Game, Timer};
 use indexmap::IndexMap;
@@ -26,15 +25,20 @@ use std::time::Instant;
 const WIDTH: usize = 30;
 const HEIGHT: usize = 30;
 
-// pub struct Host {
-//     cells: IndexMap<Coord, Cell>,
-//     clients: Vec<SocketAddr>,
-// }
-
-// pub struct Client {
-//     cells: Vec<Cell>,
-//     server_addr: Option<SocketAddr>,
-// }
+fn handle_args() -> coffee::Result<Option<SocketAddr>> {
+    let args: Vec<String> = env::args().collect();
+    match args.len() {
+        2 if args[1] == "host" => {
+            println!("host address: {}:9090", local_ip().unwrap());
+            Ok(None)
+        }
+        3 if args[1] == "client" => Ok(Some(args[2].parse().unwrap())),
+        _ => Err(coffee::Error::IO(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "incorrect usage",
+        ))),
+    }
+}
 
 pub struct Mazehem {
     cells: IndexMap<Coord, Cell>,
@@ -47,24 +51,11 @@ pub struct Mazehem {
     server_addr: Option<SocketAddr>,
 }
 
-fn invalid_input() -> coffee::Error {
-    coffee::Error::IO(io::Error::new(
-        io::ErrorKind::InvalidInput,
-        "incorrect usage",
-    ))
-}
-
-fn handle_args() -> coffee::Result<Option<SocketAddr>> {
-    let args: Vec<String> = env::args().collect();
-    match args.len() {
-        1 => Err(invalid_input()),
-        2 if args[1] == "host" => {
-            println!("host address: {}:9090", local_ip().unwrap());
-            Ok(None)
-        }
-        3 if args[1] == "client" => Ok(Some(args[2].parse().unwrap())),
-        _ => Err(invalid_input()),
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Data {
+    Cell(Cell),
+    Key(SerKey),
+    Players(Vec<Player>),
 }
 
 impl Mazehem {
@@ -180,7 +171,7 @@ impl Mazehem {
             .expect("should send");
     }
 
-    fn handle_clients_packets(&mut self) {
+    fn handle_client_packets(&mut self) {
         while let Some(event) = self.socket.recv() {
             match event {
                 SocketEvent::Packet(packet) => match deserialize::<Data>(packet.payload()) {
@@ -221,7 +212,7 @@ impl Mazehem {
         }
     }
 
-    fn compute_and_send_players(&mut self) {
+    fn send_players(&mut self) {
         self.move_player(0, self.last_key.clone());
         for addr in &self.clients {
             self.socket
@@ -234,35 +225,6 @@ impl Mazehem {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SerKey {
-    Undefined,
-    Right,
-    Down,
-    Left,
-    Up,
-}
-
-impl From<KeyCode> for SerKey {
-    fn from(key: KeyCode) -> SerKey {
-        match key {
-            KeyCode::Right => SerKey::Right,
-            KeyCode::Left => SerKey::Left,
-            KeyCode::Down => SerKey::Down,
-            KeyCode::Up => SerKey::Up,
-            _ => SerKey::Undefined,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Data {
-    Cell(Cell),
-    Key(SerKey),
-    Players(Vec<Player>),
-}
-
-#[allow(unused_must_use)]
 impl Game for Mazehem {
     type Input = GameInput;
     type LoadingScreen = ();
@@ -283,7 +245,6 @@ impl Game for Mazehem {
     fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
         let mut mesh = Mesh::new();
         frame.clear(Color::BLACK);
-
         if self.server_addr.is_none() {
             self.cells.draw(&mut mesh);
         } else {
@@ -300,8 +261,8 @@ impl Game for Mazehem {
             self.handle_host_packets();
             self.send_inputs();
         } else {
-            self.handle_clients_packets();
-            self.compute_and_send_players();
+            self.handle_client_packets();
+            self.send_players();
         }
     }
 }
