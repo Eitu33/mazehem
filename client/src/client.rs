@@ -14,9 +14,6 @@ use types::drawable::Drawable;
 use types::input::{GameInput, SerKey};
 use types::player::{init_players, Player};
 
-const WIDTH: usize = 30;
-const HEIGHT: usize = 30;
-
 fn handle_args() -> coffee::Result<Option<SocketAddr>> {
     let args: Vec<String> = env::args().collect();
     match args.len() {
@@ -44,7 +41,7 @@ impl Client {
             host_addr,
             last_key: SerKey::Undefined,
             cells: Vec::new(),
-            goal: Coord::new(WIDTH / 2, HEIGHT / 2),
+            goal: Coord::new(15, 15),
             players: init_players(),
         })
     }
