@@ -48,8 +48,8 @@ impl Client {
 
     fn handle_received_packets(&mut self) {
         while let Some(event) = self.socket.recv() {
-            match event {
-                SocketEvent::Packet(packet) => match deserialize::<Data>(packet.payload()) {
+            if let SocketEvent::Packet(packet) = event {
+                match deserialize::<Data>(packet.payload()) {
                     Ok(Data::Cells(mut cells)) => {
                         self.cells.append(&mut cells);
                     }
@@ -57,8 +57,7 @@ impl Client {
                         self.players = players.into_iter().map(|p| p.colored()).collect()
                     }
                     _ => (),
-                },
-                _ => (),
+                }
             }
         }
     }
@@ -78,11 +77,11 @@ impl Game for Client {
     type LoadingScreen = ();
 
     fn load(_window: &Window) -> Task<Client> {
-        Task::new(|| Client::new())
+        Task::new(Client::new)
     }
 
     fn interact(&mut self, input: &mut GameInput, _window: &mut Window) {
-        if input.keys_pressed.len() != 0 {
+        if !input.keys_pressed.is_empty() {
             let key = input.keys_pressed[0];
             self.last_key = SerKey::from(key);
         } else {

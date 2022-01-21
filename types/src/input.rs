@@ -14,17 +14,12 @@ impl Input for GameInput {
     }
 
     fn update(&mut self, event: input::Event) {
-        match event {
-            input::Event::Keyboard(keyboard_event) => match keyboard_event {
-                keyboard::Event::Input { key_code, state } => match state {
-                    input::ButtonState::Pressed => {
-                        self.keys_pressed.push(key_code);
-                    }
-                    _ => (),
-                },
-                _ => (),
-            },
-            _ => (),
+        if let input::Event::Keyboard(keyboard::Event::Input {
+            key_code,
+            state: input::ButtonState::Pressed,
+        }) = event
+        {
+            self.keys_pressed.push(key_code);
         }
     }
 
