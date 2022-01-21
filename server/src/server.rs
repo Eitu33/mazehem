@@ -1,5 +1,6 @@
 use crate::maze::Maze;
 use bincode::{deserialize, serialize};
+use crossbeam_channel::{Receiver, Sender};
 use indexmap::IndexMap;
 use laminar::{Packet, Socket, SocketEvent};
 use std::net::SocketAddr;
@@ -10,7 +11,6 @@ use types::input::SerKey;
 use types::player::{init_players, Player};
 
 // TODO: encrypt connections
-// TODO: async receiving
 // TODO: send maze in 1 packet
 // TODO: directly associate ips to players
 
@@ -18,6 +18,8 @@ const WIDTH: usize = 30;
 const HEIGHT: usize = 30;
 
 pub struct Server {
+    sender: Sender<Packet>,
+    receiver: Receiver<SocketEvent>,
     clients: Vec<SocketAddr>,
     players: Vec<Player>,
     cells: IndexMap<Coord, Cell>,
@@ -25,7 +27,19 @@ pub struct Server {
 
 impl Server {
     pub fn new() -> Server {
+        let mut socket = Socket::bind_with_config(
+            "0.0.0.0:9090",
+            laminar::Config {
+                max_packets_in_flight: ((WIDTH * HEIGHT) * 3) as u16,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let (sender, receiver) = (socket.get_packet_sender(), socket.get_event_receiver());
+        std::thread::spawn(move || socket.start_polling());
         Server {
+            sender,
+            receiver,
             clients: Vec::new(),
             players: init_players(),
             cells: Maze::new(WIDTH, HEIGHT).generate(),
@@ -92,18 +106,8 @@ impl Server {
     }
 
     pub fn run(&mut self) {
-        let mut socket = Socket::bind_with_config(
-            "0.0.0.0:9090",
-            laminar::Config {
-                max_packets_in_flight: ((WIDTH * HEIGHT) * 3) as u16,
-                ..Default::default()
-            },
-        )
-        .unwrap();
-        let (sender, receiver) = (socket.get_packet_sender(), socket.get_event_receiver());
-        std::thread::spawn(move || socket.start_polling());
         loop {
-            if let Ok(event) = receiver.recv() {
+            if let Ok(event) = self.receiver.recv() {
                 match event {
                     SocketEvent::Packet(packet) => match deserialize::<Data>(packet.payload()) {
                         Ok(Data::Key(key)) => {
@@ -112,7 +116,7 @@ impl Server {
                             {
                                 self.move_player(index, key);
                             } else {
-                                sender
+                                self.sender
                                     .send(Packet::reliable_unordered(
                                         client_addr,
                                         "connection allowed".as_bytes().to_vec(),
@@ -126,7 +130,7 @@ impl Server {
                         if self.clients.len() < 4 {
                             println!("client ip {} connected and was registered", addr);
                             for c in &self.cells {
-                                sender
+                                self.sender
                                     .send(Packet::reliable_unordered(
                                         addr,
                                         serialize::<Data>(&Data::Cell(c.1.clone())).unwrap(),
@@ -143,8 +147,7 @@ impl Server {
                 }
             }
             for addr in &self.clients {
-                println!("SENDING");
-                sender
+                self.sender
                     .send(Packet::reliable_unordered(
                         *addr,
                         serialize::<Data>(&Data::Players(self.players.clone())).unwrap(),
