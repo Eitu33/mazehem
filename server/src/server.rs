@@ -10,7 +10,6 @@ use types::data::Data;
 use types::input::SerKey;
 use types::player::{init_players, Player};
 
-// TODO: stable maze sending
 // TODO: directly associate ips to players
 // TODO: encrypt connections
 
@@ -27,14 +26,7 @@ pub struct Server {
 
 impl Server {
     pub fn new() -> Server {
-        let mut socket = Socket::bind_with_config(
-            "0.0.0.0:9090",
-            laminar::Config {
-                max_packets_in_flight: ((WIDTH * HEIGHT) * 3) as u16,
-                ..Default::default()
-            },
-        )
-        .unwrap();
+        let mut socket = Socket::bind("0.0.0.0:9090").unwrap();
         let (sender, receiver) = (socket.get_packet_sender(), socket.get_event_receiver());
         std::thread::spawn(move || socket.start_polling());
         Server {
@@ -82,11 +74,12 @@ impl Server {
     fn on_connected_client(&mut self, addr: SocketAddr) {
         if self.clients.len() < 4 {
             println!("client ip {} connected and was registered", addr);
-            for c in &self.cells {
+            let vec = self.cells.clone().into_iter().map(|x| x.1).collect::<Vec<Cell>>();
+            for chunk in vec.chunks(10) {
                 self.sender
                     .send(Packet::reliable_unordered(
                         addr,
-                        serialize::<Data>(&Data::Cell(c.1.clone())).unwrap(),
+                        serialize::<Data>(&Data::Cell(chunk.to_vec())).unwrap(),
                     ))
                     .expect("should send");
             }

@@ -5,7 +5,7 @@ use serde_derive::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Data {
-    Cell(Cell),
+    Cell(Vec<Cell>),
     Players(Vec<Player>),
     Key(SerKey),
 }
