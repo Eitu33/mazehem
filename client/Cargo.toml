@@ -1,5 +1,5 @@
 [package]
-name = "client"
+name = "mazehem_client"
 version = "0.1.0"
 authors = ["Thomas Plisson <thomas.plisson@epitech.eu>"]
 edition = "2018"
