@@ -14,10 +14,10 @@ use types::drawable::Drawable;
 use types::input::{GameInput, SerKey};
 use types::player::Player;
 
-fn handle_args() -> coffee::Result<Option<SocketAddr>> {
+fn handle_args() -> coffee::Result<SocketAddr> {
     let args: Vec<String> = env::args().collect();
     match args.len() {
-        2 => Ok(Some(args[1].parse().unwrap())),
+        2 => Ok(args[1].parse().unwrap()),
         _ => Err(coffee::Error::IO(io::Error::new(
             io::ErrorKind::InvalidInput,
             "incorrect usage",
@@ -27,7 +27,7 @@ fn handle_args() -> coffee::Result<Option<SocketAddr>> {
 
 pub struct Client {
     socket: Socket,
-    host_addr: Option<SocketAddr>,
+    server_addr: SocketAddr,
     last_key: SerKey,
     cells: Vec<Cell>,
     players: Vec<Player>,
@@ -36,10 +36,9 @@ pub struct Client {
 
 impl Client {
     fn new() -> coffee::Result<Client> {
-        let host_addr = handle_args()?;
         Ok(Client {
             socket: Socket::bind("0.0.0.0:7070").unwrap(),
-            host_addr,
+            server_addr: handle_args()?,
             last_key: SerKey::Undefined,
             cells: Vec::new(),
             players: Vec::new(),
@@ -66,7 +65,7 @@ impl Client {
     fn send_inputs(&mut self) {
         self.socket
             .send(Packet::reliable_unordered(
-                self.host_addr.unwrap(),
+                self.server_addr,
                 serialize::<Data>(&Data::Key(self.last_key.clone())).unwrap(),
             ))
             .expect("should send");
