@@ -12,7 +12,7 @@ use types::coord::Coord;
 use types::data::Data;
 use types::drawable::Drawable;
 use types::input::{GameInput, SerKey};
-use types::player::{init_players, Player};
+use types::player::Player;
 
 fn handle_args() -> coffee::Result<Option<SocketAddr>> {
     let args: Vec<String> = env::args().collect();
@@ -30,8 +30,8 @@ pub struct Client {
     host_addr: Option<SocketAddr>,
     last_key: SerKey,
     cells: Vec<Cell>,
-    goal: Coord,
     players: Vec<Player>,
+    goal: Coord,
 }
 
 impl Client {
@@ -42,8 +42,8 @@ impl Client {
             host_addr,
             last_key: SerKey::Undefined,
             cells: Vec::new(),
+            players: Vec::new(),
             goal: Coord::new(25, 25),
-            players: init_players(),
         })
     }
 
