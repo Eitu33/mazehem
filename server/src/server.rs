@@ -10,9 +10,9 @@ use types::data::Data;
 use types::input::SerKey;
 use types::player::{init_players, Player};
 
-// TODO: encrypt connections
-// TODO: send maze in 1 packet
+// TODO: stable maze sending
 // TODO: directly associate ips to players
+// TODO: encrypt connections
 
 const WIDTH: usize = 30;
 const HEIGHT: usize = 30;
@@ -46,12 +46,66 @@ impl Server {
         }
     }
 
-    fn move_allowed(&self, i: usize, to: &Coord) -> bool {
-        if !to.out_of_bounds(WIDTH, HEIGHT) {
-            self.cells.get(&self.players[i].coord).unwrap().n.contains(to)
-                || self.cells.get(to).unwrap().n.contains(&self.players[i].coord)
-        } else {
-            false
+    pub fn run(&mut self) {
+        loop {
+            if let Ok(event) = self.receiver.recv() {
+                match event {
+                    SocketEvent::Packet(packet) => self.on_packet_received(packet),
+                    SocketEvent::Connect(addr) => self.on_connected_client(addr),
+                    SocketEvent::Disconnect(addr) => self.on_disconnected_client(addr),
+                    _ => (),
+                }
+            }
+            self.send_computed_data();
+        }
+    }
+
+    fn on_packet_received(&mut self, packet: Packet) {
+        match deserialize::<Data>(packet.payload()) {
+            Ok(Data::Key(key)) => {
+                let client_addr = packet.addr();
+                if let Some(index) = self.clients.iter().position(|x| x == &client_addr) {
+                    self.move_player(index, key);
+                } else {
+                    self.sender
+                        .send(Packet::reliable_unordered(
+                            client_addr,
+                            "connection allowed".as_bytes().to_vec(),
+                        ))
+                        .expect("should send");
+                }
+            }
+            _ => (),
+        }
+    }
+
+    fn on_connected_client(&mut self, addr: SocketAddr) {
+        if self.clients.len() < 4 {
+            println!("client ip {} connected and was registered", addr);
+            for c in &self.cells {
+                self.sender
+                    .send(Packet::reliable_unordered(
+                        addr,
+                        serialize::<Data>(&Data::Cell(c.1.clone())).unwrap(),
+                    ))
+                    .expect("should send");
+            }
+            self.clients.push(addr);
+        }
+    }
+
+    fn on_disconnected_client(&mut self, addr: SocketAddr) {
+        println!("client ip {} disconnected", addr);
+    }
+
+    fn send_computed_data(&mut self) {
+        for addr in &self.clients {
+            self.sender
+                .send(Packet::reliable_unordered(
+                    *addr,
+                    serialize::<Data>(&Data::Players(self.players.clone())).unwrap(),
+                ))
+                .expect("should send");
         }
     }
 
@@ -105,55 +159,12 @@ impl Server {
         }
     }
 
-    pub fn run(&mut self) {
-        loop {
-            if let Ok(event) = self.receiver.recv() {
-                match event {
-                    SocketEvent::Packet(packet) => match deserialize::<Data>(packet.payload()) {
-                        Ok(Data::Key(key)) => {
-                            let client_addr = packet.addr();
-                            if let Some(index) = self.clients.iter().position(|x| x == &client_addr)
-                            {
-                                self.move_player(index, key);
-                            } else {
-                                self.sender
-                                    .send(Packet::reliable_unordered(
-                                        client_addr,
-                                        "connection allowed".as_bytes().to_vec(),
-                                    ))
-                                    .expect("should send");
-                            }
-                        }
-                        _ => (),
-                    },
-                    SocketEvent::Connect(addr) => {
-                        if self.clients.len() < 4 {
-                            println!("client ip {} connected and was registered", addr);
-                            for c in &self.cells {
-                                self.sender
-                                    .send(Packet::reliable_unordered(
-                                        addr,
-                                        serialize::<Data>(&Data::Cell(c.1.clone())).unwrap(),
-                                    ))
-                                    .expect("should send");
-                            }
-                            self.clients.push(addr);
-                        }
-                    }
-                    SocketEvent::Disconnect(addr) => {
-                        println!("client ip {} disconnected", addr)
-                    }
-                    _ => (),
-                }
-            }
-            for addr in &self.clients {
-                self.sender
-                    .send(Packet::reliable_unordered(
-                        *addr,
-                        serialize::<Data>(&Data::Players(self.players.clone())).unwrap(),
-                    ))
-                    .expect("should send");
-            }
+    fn move_allowed(&self, i: usize, to: &Coord) -> bool {
+        if !to.out_of_bounds(WIDTH, HEIGHT) {
+            self.cells.get(&self.players[i].coord).unwrap().n.contains(to)
+                || self.cells.get(to).unwrap().n.contains(&self.players[i].coord)
+        } else {
+            false
         }
     }
 }
