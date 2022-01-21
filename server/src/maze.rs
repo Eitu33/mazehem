@@ -1,8 +1,8 @@
-use types::cell::Cell;
-use types::coord::Coord;
 use indexmap::IndexMap;
 use rand::Rng;
 use std::collections::HashMap;
+use types::cell::Cell;
+use types::coord::Coord;
 
 pub struct Maze {
     unconnected: HashMap<Coord, ()>,
