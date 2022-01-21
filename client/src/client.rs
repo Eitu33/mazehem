@@ -27,25 +27,25 @@ fn handle_args() -> coffee::Result<Option<SocketAddr>> {
         ))),
     }
 }
-pub struct Mazehem {
-    last_key: SerKey,
-    players: Vec<Player>,
-    goal: Coord,
+pub struct Client {
     socket: Socket,
-    cells: Vec<Cell>,
     host_addr: Option<SocketAddr>,
+    last_key: SerKey,
+    cells: Vec<Cell>,
+    goal: Coord,
+    players: Vec<Player>,
 }
 
-impl Mazehem {
-    fn new() -> coffee::Result<Mazehem> {
+impl Client {
+    fn new() -> coffee::Result<Client> {
         let host_addr = handle_args()?;
-        Ok(Mazehem {
-            last_key: SerKey::Undefined,
-            players: init_players(),
-            goal: Coord::new(WIDTH / 2, HEIGHT / 2),
+        Ok(Client {
             socket: Socket::bind("0.0.0.0:7070").unwrap(),
-            cells: Vec::new(),
             host_addr,
+            last_key: SerKey::Undefined,
+            cells: Vec::new(),
+            goal: Coord::new(WIDTH / 2, HEIGHT / 2),
+            players: init_players(),
         })
     }
 
@@ -78,12 +78,12 @@ impl Mazehem {
     }
 }
 
-impl Game for Mazehem {
+impl Game for Client {
     type Input = GameInput;
     type LoadingScreen = ();
 
-    fn load(_window: &Window) -> Task<Mazehem> {
-        Task::new(|| Mazehem::new())
+    fn load(_window: &Window) -> Task<Client> {
+        Task::new(|| Client::new())
     }
 
     fn interact(&mut self, input: &mut GameInput, _window: &mut Window) {
@@ -99,8 +99,8 @@ impl Game for Mazehem {
         let mut mesh = Mesh::new();
         frame.clear(Color::BLACK);
         self.cells.draw(&mut mesh);
-        self.players.draw(&mut mesh);
         self.goal.draw(&mut mesh);
+        self.players.draw(&mut mesh);
         mesh.draw(&mut frame.as_target());
     }
 

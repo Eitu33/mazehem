@@ -1,11 +1,11 @@
-mod game;
+mod client;
 
+use client::Client;
 use coffee::graphics::WindowSettings;
 use coffee::Game;
-use game::Mazehem;
 
 fn main() {
-    match Mazehem::run(WindowSettings {
+    match Client::run(WindowSettings {
         title: String::from("Mazehem"),
         size: (590, 590),
         resizable: false,
