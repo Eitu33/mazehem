@@ -11,10 +11,10 @@ use types::data::Data;
 use types::input::SerKey;
 use types::player::{init_players, Player};
 
-// TODO: split game file content
 // TODO: encrypt connections
-// TODO: async receiving?
-// TODO: send maze in 1 packet?
+// TODO: async receiving
+// TODO: send maze in 1 packet
+// TODO: directly associate ips to players
 
 const WIDTH: usize = 30;
 const HEIGHT: usize = 30;
@@ -103,7 +103,7 @@ impl Server {
         }
     }
 
-    pub fn handle_received_packets(&mut self) {
+    pub fn receive_and_compute(&mut self) {
         self.socket.manual_poll(Instant::now());
         while let Some(event) = self.socket.recv() {
             match event {
@@ -145,7 +145,7 @@ impl Server {
         }
     }
 
-    pub fn send(&mut self) {
+    pub fn send_players(&mut self) {
         for addr in &self.clients {
             self.socket
                 .send(Packet::reliable_unordered(

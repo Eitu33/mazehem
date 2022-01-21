@@ -68,7 +68,7 @@ impl Mazehem {
         }
     }
 
-    fn send(&mut self) {
+    fn send_inputs(&mut self) {
         self.socket
             .send(Packet::reliable_unordered(
                 self.host_addr.unwrap(),
@@ -107,6 +107,6 @@ impl Game for Mazehem {
     fn update(&mut self, _window: &Window) {
         self.socket.manual_poll(Instant::now());
         self.handle_received_packets();
-        self.send();
+        self.send_inputs();
     }
 }
