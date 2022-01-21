@@ -10,8 +10,8 @@ use types::data::Data;
 use types::input::SerKey;
 use types::player::{init_players, Player};
 
-const WIDTH: usize = 30;
-const HEIGHT: usize = 30;
+const WIDTH: usize = 50;
+const HEIGHT: usize = 50;
 
 pub struct Server {
     sender: Sender<Packet>,

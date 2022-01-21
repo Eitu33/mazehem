@@ -24,9 +24,9 @@ impl Player {
         Player {
             number,
             coord: match number {
-                2 => Coord::new(29, 0),
-                3 => Coord::new(0, 29),
-                4 => Coord::new(29, 29),
+                2 => Coord::new(49, 0),
+                3 => Coord::new(0, 49),
+                4 => Coord::new(49, 49),
                 _ => Coord::new(0, 0),
             },
             color: None,
@@ -51,8 +51,8 @@ impl Drawable for Player {
     fn draw(&self, mesh: &mut Mesh) {
         mesh.fill(
             Shape::Rectangle(Rectangle {
-                x: (self.coord.x * 20) as f32,
-                y: (self.coord.y * 20) as f32,
+                x: (self.coord.x * 20 + 10) as f32,
+                y: (self.coord.y * 20 + 10) as f32,
                 width: 10.0,
                 height: 10.0,
             }),

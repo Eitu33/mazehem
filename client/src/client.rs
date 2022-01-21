@@ -42,7 +42,7 @@ impl Client {
             host_addr,
             last_key: SerKey::Undefined,
             cells: Vec::new(),
-            goal: Coord::new(15, 15),
+            goal: Coord::new(25, 25),
             players: init_players(),
         })
     }

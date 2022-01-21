@@ -49,8 +49,8 @@ impl Drawable for Cell {
             }
             mesh.fill(
                 Shape::Rectangle(Rectangle {
-                    x: (self.coord.x * 20 - a) as f32,
-                    y: (self.coord.y * 20 - b) as f32,
+                    x: (self.coord.x * 20 - a + 10) as f32,
+                    y: (self.coord.y * 20 - b + 10) as f32,
                     width,
                     height,
                 }),

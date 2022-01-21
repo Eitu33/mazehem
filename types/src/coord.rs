@@ -29,8 +29,8 @@ impl Drawable for Coord {
     fn draw(&self, mesh: &mut Mesh) {
         mesh.fill(
             Shape::Rectangle(Rectangle {
-                x: (self.x * 20) as f32,
-                y: (self.y * 20) as f32,
+                x: (self.x * 20 + 10) as f32,
+                y: (self.y * 20 + 10) as f32,
                 width: 10.0,
                 height: 10.0,
             }),
