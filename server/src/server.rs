@@ -2,9 +2,7 @@ use crate::maze::Maze;
 use bincode::{deserialize, serialize};
 use indexmap::IndexMap;
 use laminar::{Packet, Socket, SocketEvent};
-use local_ip_address::local_ip;
 use std::net::SocketAddr;
-use std::time::Instant;
 use types::cell::Cell;
 use types::coord::Coord;
 use types::data::Data;
@@ -20,27 +18,17 @@ const WIDTH: usize = 30;
 const HEIGHT: usize = 30;
 
 pub struct Server {
-    players: Vec<Player>,
-    socket: Socket,
-    cells: IndexMap<Coord, Cell>,
     clients: Vec<SocketAddr>,
+    players: Vec<Player>,
+    cells: IndexMap<Coord, Cell>,
 }
 
 impl Server {
     pub fn new() -> Server {
-        println!("server address: {}:9090", local_ip().unwrap());
         Server {
-            players: init_players(),
-            socket: Socket::bind_with_config(
-                "0.0.0.0:9090",
-                laminar::Config {
-                    max_packets_in_flight: ((WIDTH * HEIGHT) * 2) as u16,
-                    ..Default::default()
-                },
-            )
-            .unwrap(),
-            cells: Maze::new(WIDTH, HEIGHT).generate(),
             clients: Vec::new(),
+            players: init_players(),
+            cells: Maze::new(WIDTH, HEIGHT).generate(),
         }
     }
 
@@ -103,56 +91,66 @@ impl Server {
         }
     }
 
-    pub fn receive_and_compute(&mut self) {
-        self.socket.manual_poll(Instant::now());
-        while let Some(event) = self.socket.recv() {
-            match event {
-                SocketEvent::Packet(packet) => match deserialize::<Data>(packet.payload()) {
-                    Ok(Data::Key(key)) => {
-                        let client_addr = packet.addr();
-                        if let Some(index) = self.clients.iter().position(|x| x == &client_addr) {
-                            self.move_player(index, key);
-                        } else {
-                            self.socket
-                                .send(Packet::reliable_unordered(
-                                    client_addr,
-                                    "connection allowed".as_bytes().to_vec(),
-                                ))
-                                .expect("should send");
+    pub fn run(&mut self) {
+        let mut socket = Socket::bind_with_config(
+            "0.0.0.0:9090",
+            laminar::Config {
+                max_packets_in_flight: ((WIDTH * HEIGHT) * 3) as u16,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let (sender, receiver) = (socket.get_packet_sender(), socket.get_event_receiver());
+        std::thread::spawn(move || socket.start_polling());
+        loop {
+            if let Ok(event) = receiver.recv() {
+                match event {
+                    SocketEvent::Packet(packet) => match deserialize::<Data>(packet.payload()) {
+                        Ok(Data::Key(key)) => {
+                            let client_addr = packet.addr();
+                            if let Some(index) = self.clients.iter().position(|x| x == &client_addr)
+                            {
+                                self.move_player(index, key);
+                            } else {
+                                sender
+                                    .send(Packet::reliable_unordered(
+                                        client_addr,
+                                        "connection allowed".as_bytes().to_vec(),
+                                    ))
+                                    .expect("should send");
+                            }
                         }
+                        _ => (),
+                    },
+                    SocketEvent::Connect(addr) => {
+                        if self.clients.len() < 4 {
+                            println!("client ip {} connected and was registered", addr);
+                            for c in &self.cells {
+                                sender
+                                    .send(Packet::reliable_unordered(
+                                        addr,
+                                        serialize::<Data>(&Data::Cell(c.1.clone())).unwrap(),
+                                    ))
+                                    .expect("should send");
+                            }
+                            self.clients.push(addr);
+                        }
+                    }
+                    SocketEvent::Disconnect(addr) => {
+                        println!("client ip {} disconnected", addr)
                     }
                     _ => (),
-                },
-                SocketEvent::Connect(addr) => {
-                    if self.clients.len() < 4 {
-                        println!("client ip {} connected and was registered", addr);
-                        for c in &self.cells {
-                            self.socket
-                                .send(Packet::reliable_unordered(
-                                    addr,
-                                    serialize::<Data>(&Data::Cell(c.1.clone())).unwrap(),
-                                ))
-                                .expect("should send");
-                        }
-                        self.clients.push(addr);
-                    }
                 }
-                SocketEvent::Disconnect(addr) => {
-                    println!("client ip {} disconnected", addr)
-                }
-                _ => (),
             }
-        }
-    }
-
-    pub fn send_players(&mut self) {
-        for addr in &self.clients {
-            self.socket
-                .send(Packet::reliable_unordered(
-                    *addr,
-                    serialize::<Data>(&Data::Players(self.players.clone())).unwrap(),
-                ))
-                .expect("should send");
+            for addr in &self.clients {
+                println!("SENDING");
+                sender
+                    .send(Packet::reliable_unordered(
+                        *addr,
+                        serialize::<Data>(&Data::Players(self.players.clone())).unwrap(),
+                    ))
+                    .expect("should send");
+            }
         }
     }
 }
