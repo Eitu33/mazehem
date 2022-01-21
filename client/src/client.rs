@@ -53,8 +53,8 @@ impl Client {
         while let Some(event) = self.socket.recv() {
             match event {
                 SocketEvent::Packet(packet) => match deserialize::<Data>(packet.payload()) {
-                    Ok(Data::Cell(mut cell)) => {
-                        self.cells.append(&mut cell);
+                    Ok(Data::Cells(mut cells)) => {
+                        self.cells.append(&mut cells);
                     }
                     Ok(Data::Players(players)) => {
                         self.players = players.into_iter().map(|p| p.colored()).collect()

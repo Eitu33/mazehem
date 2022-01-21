@@ -79,7 +79,7 @@ impl Server {
                 self.sender
                     .send(Packet::reliable_unordered(
                         addr,
-                        serialize::<Data>(&Data::Cell(chunk.to_vec())).unwrap(),
+                        serialize::<Data>(&Data::Cells(chunk.to_vec())).unwrap(),
                     ))
                     .expect("should send");
             }
