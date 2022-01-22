@@ -5,13 +5,11 @@ use indexmap::IndexMap;
 use laminar::{Packet, Socket, SocketEvent};
 use std::net::SocketAddr;
 use types::cell::Cell;
+use types::constants::{HEIGHT, WIDTH};
 use types::coord::Coord;
 use types::data::Data;
 use types::input::SerKey;
 use types::player::{init_players, Player};
-
-const WIDTH: usize = 50;
-const HEIGHT: usize = 50;
 
 pub struct Server {
     sender: Sender<Packet>,
