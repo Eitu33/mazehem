@@ -1,4 +1,4 @@
-use crate::constants::{LINK_OFFSET, LINK_SIZE, SCALE, SQUARE_SIZE, WINDOW_OFFSET};
+use crate::constants::{LINK_OFFSET, LINK_SIZE, SCALE, SQUARE_SIZE, WINDOW_OFFSET, PATH_COLOR};
 use crate::coord::Coord;
 use crate::drawable::Drawable;
 use coffee::graphics::{Color, Mesh, Rectangle, Shape};
@@ -55,7 +55,7 @@ impl Drawable for Cell {
                     width,
                     height,
                 }),
-                Color::from_rgb_u32(0xecc28a),
+                Color::from_rgb_u32(PATH_COLOR),
             );
         }
     }
