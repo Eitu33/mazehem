@@ -1,3 +1,4 @@
+use crate::constants::{LINK_OFFSET, LINK_SIZE, SCALE, SQUARE_SIZE, WINDOW_OFFSET};
 use crate::coord::Coord;
 use crate::drawable::Drawable;
 use coffee::graphics::{Color, Mesh, Rectangle, Shape};
@@ -34,23 +35,23 @@ impl Cell {
 impl Drawable for Cell {
     fn draw(&self, mesh: &mut Mesh) {
         for neighbor in &self.n {
-            let (mut width, mut height) = (10.0, 10.0);
-            let (mut a, mut b) = (0, 0);
+            let (mut width, mut height) = (SQUARE_SIZE, SQUARE_SIZE);
+            let (mut a, mut b) = (0.0, 0.0);
             if neighbor.x < self.coord.x {
-                width = 30.0;
-                a = 20;
+                width = LINK_SIZE;
+                a = LINK_OFFSET;
             } else if neighbor.x > self.coord.x {
-                width = 30.0;
+                width = LINK_SIZE;
             } else if neighbor.y < self.coord.y {
-                height = 30.0;
-                b = 20;
+                height = LINK_SIZE;
+                b = LINK_OFFSET;
             } else if neighbor.y > self.coord.y {
-                height = 30.0;
+                height = LINK_SIZE;
             }
             mesh.fill(
                 Shape::Rectangle(Rectangle {
-                    x: (self.coord.x * 20 - a + 10) as f32,
-                    y: (self.coord.y * 20 - b + 10) as f32,
+                    x: (self.coord.x as f32) * SCALE - a + WINDOW_OFFSET,
+                    y: (self.coord.y as f32) * SCALE - b + WINDOW_OFFSET,
                     width,
                     height,
                 }),

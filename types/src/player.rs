@@ -1,3 +1,6 @@
+use crate::constants::{
+    HEIGHT, P1_COLOR, P2_COLOR, P3_COLOR, P4_COLOR, SCALE, SQUARE_SIZE, WIDTH, WINDOW_OFFSET,
+};
 use crate::coord::Coord;
 use crate::drawable::Drawable;
 use coffee::graphics::{Color, Mesh, Rectangle, Shape};
@@ -24,9 +27,9 @@ impl Player {
         Player {
             number,
             coord: match number {
-                2 => Coord::new(49, 0),
-                3 => Coord::new(0, 49),
-                4 => Coord::new(49, 49),
+                2 => Coord::new(WIDTH - 1, 0),
+                3 => Coord::new(0, HEIGHT - 1),
+                4 => Coord::new(WIDTH - 1, HEIGHT - 1),
                 _ => Coord::new(0, 0),
             },
             color: None,
@@ -38,10 +41,10 @@ impl Player {
             number: self.number,
             coord: self.coord,
             color: Some(match self.number {
-                2 => Color::from_rgb_u32(0x0b5394),
-                3 => Color::from_rgb_u32(0x38761d),
-                4 => Color::from_rgb_u32(0xb45f06),
-                _ => Color::from_rgb_u32(0x990000),
+                2 => Color::from_rgb_u32(P2_COLOR),
+                3 => Color::from_rgb_u32(P3_COLOR),
+                4 => Color::from_rgb_u32(P4_COLOR),
+                _ => Color::from_rgb_u32(P1_COLOR),
             }),
         }
     }
@@ -51,10 +54,10 @@ impl Drawable for Player {
     fn draw(&self, mesh: &mut Mesh) {
         mesh.fill(
             Shape::Rectangle(Rectangle {
-                x: (self.coord.x * 20 + 10) as f32,
-                y: (self.coord.y * 20 + 10) as f32,
-                width: 10.0,
-                height: 10.0,
+                x: (self.coord.x as f32) * SCALE + WINDOW_OFFSET,
+                y: (self.coord.y as f32) * SCALE + WINDOW_OFFSET,
+                width: SQUARE_SIZE,
+                height: SQUARE_SIZE,
             }),
             self.color.unwrap_or(Color::WHITE),
         );

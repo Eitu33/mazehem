@@ -1,10 +1,11 @@
 pub const WIDTH: usize = 50;
 pub const HEIGHT: usize = 50;
 
-pub const LINK_SIZE: usize = 30;
-pub const CELL_SIZE: usize = 10;
-pub const SCALE: usize = 20;
-pub const OFFSET: usize = 10;
+pub const LINK_SIZE: f32 = 30.0;
+pub const LINK_OFFSET: f32 = 20.0;
+pub const SQUARE_SIZE: f32 = 10.0;
+pub const SCALE: f32 = 20.0;
+pub const WINDOW_OFFSET: f32 = 10.0;
 
 pub const P1_COLOR: u32 = 0x990000;
 pub const P2_COLOR: u32 = 0x0b5394;
