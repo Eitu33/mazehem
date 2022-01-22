@@ -8,6 +8,7 @@ use std::io;
 use std::net::SocketAddr;
 use std::time::Instant;
 use types::cell::Cell;
+use types::constants::{HEIGHT, WALLS_COLOR, WIDTH};
 use types::coord::Coord;
 use types::data::Data;
 use types::drawable::Drawable;
@@ -42,7 +43,7 @@ impl Client {
             last_key: SerKey::Undefined,
             cells: Vec::new(),
             players: Vec::new(),
-            goal: Coord::new(25, 25),
+            goal: Coord::new(WIDTH / 2, HEIGHT / 2),
         })
     }
 
@@ -91,7 +92,7 @@ impl Game for Client {
 
     fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
         let mut mesh = Mesh::new();
-        frame.clear(Color::from_rgb_u32(0x88a97a));
+        frame.clear(Color::from_rgb_u32(WALLS_COLOR));
         self.cells.draw(&mut mesh);
         self.goal.draw(&mut mesh);
         self.players.draw(&mut mesh);
