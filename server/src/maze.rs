@@ -11,10 +11,10 @@ pub struct Maze {
 
 impl Maze {
     pub fn new(width: usize, height: usize) -> Maze {
-        let mut unconnected: HashMap<Coord, ()> = HashMap::new();
-        let mut connected: IndexMap<Coord, Cell> = IndexMap::new();
         let starting_coord = Coord::new(width / 2, height / 2);
-        connected.insert(starting_coord, Cell::new(starting_coord));
+        let connected: IndexMap<Coord, Cell> =
+            IndexMap::from([(starting_coord, Cell::new(starting_coord))]);
+        let mut unconnected: HashMap<Coord, ()> = HashMap::new();
         for x in 0..width {
             for y in 0..height {
                 unconnected.insert(Coord::new(x, y), ());
@@ -28,14 +28,9 @@ impl Maze {
     }
 
     fn list_candidates(&mut self, index: usize) -> Vec<Coord> {
-        let mut candidates: Vec<Coord> = Vec::new();
-        let coords = self.connected[index].get_adjacent_coords();
-        for coord in coords {
-            if coord != self.connected[index].coord {
-                candidates.push(coord);
-            }
-        }
-        candidates
+        let mut coords = self.connected[index].get_adjacent_coords();
+        coords.retain(|coord| coord != &self.connected[index].coord);
+        coords
     }
 
     fn chose_candidate(&mut self, index: usize) -> Coord {
