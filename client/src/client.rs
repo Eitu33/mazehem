@@ -29,6 +29,7 @@ fn handle_args() -> coffee::Result<SocketAddr> {
 pub struct Client {
     socket: Socket,
     server_addr: SocketAddr,
+    connected: bool,
     last_key: SerKey,
     cells: Vec<Cell>,
     players: Vec<Player>,
@@ -40,6 +41,7 @@ impl Client {
         Ok(Client {
             socket: Socket::bind("0.0.0.0:7070").unwrap(),
             server_addr: handle_args()?,
+            connected: false,
             last_key: SerKey::Undefined,
             cells: Vec::new(),
             players: Vec::new(),
@@ -49,8 +51,8 @@ impl Client {
 
     fn handle_received_packets(&mut self) {
         while let Some(event) = self.socket.recv() {
-            if let SocketEvent::Packet(packet) = event {
-                match deserialize::<Data>(packet.payload()) {
+            match event {
+                SocketEvent::Packet(packet) => match deserialize::<Data>(packet.payload()) {
                     Ok(Data::Cells(mut cells)) => {
                         self.cells.append(&mut cells);
                     }
@@ -58,6 +60,15 @@ impl Client {
                         self.players = players.into_iter().map(|p| p.colored()).collect()
                     }
                     _ => (),
+                },
+                SocketEvent::Connect(_) => self.connected = true,
+                SocketEvent::Timeout(_) => {
+                    eprintln!("connection failed");
+                    std::process::exit(1);
+                }
+                SocketEvent::Disconnect(_) => {
+                    eprintln!("connection to the server has been lost");
+                    std::process::exit(1);
                 }
             }
         }
@@ -96,7 +107,9 @@ impl Game for Client {
         self.cells.draw(&mut mesh);
         self.goal.draw(&mut mesh);
         self.players.draw(&mut mesh);
-        mesh.draw(&mut frame.as_target());
+        if self.connected {
+            mesh.draw(&mut frame.as_target());
+        }
     }
 
     fn update(&mut self, _window: &Window) {
