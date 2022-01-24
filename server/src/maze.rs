@@ -28,9 +28,9 @@ impl Maze {
     }
 
     fn list_candidates(&mut self, index: usize) -> Vec<Coord> {
-        let mut coords = self.connected[index].get_adjacent_coords();
-        coords.retain(|coord| coord != &self.connected[index].coord);
-        coords
+        let mut candidates = self.connected[index].get_adjacent_coords();
+        candidates.retain(|x| x != &self.connected[index].coord);
+        candidates
     }
 
     fn chose_candidate(&mut self, index: usize) -> Coord {
