@@ -27,15 +27,10 @@ impl Maze {
         }
     }
 
-    fn list_candidates(&mut self, index: usize) -> Vec<Coord> {
+    fn chose_candidate(&mut self, index: usize) -> Coord {
         let mut candidates = self.connected[index].get_adjacent_coords();
         candidates.retain(|x| x != &self.connected[index].coord);
-        candidates
-    }
-
-    fn chose_candidate(&mut self, index: usize) -> Coord {
-        let neighbors = self.list_candidates(index);
-        neighbors[rand::thread_rng().gen_range(0..neighbors.len())]
+        candidates[rand::thread_rng().gen_range(0..candidates.len())]
     }
 
     pub fn generate(&mut self) -> IndexMap<Coord, Cell> {
