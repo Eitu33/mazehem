@@ -38,7 +38,7 @@ pub struct Client {
 
 impl Client {
     fn new() -> coffee::Result<Client> {
-        Ok(Client {
+        let mut client = Client {
             socket: Socket::bind("0.0.0.0:7070").unwrap(),
             server_addr: handle_args()?,
             connected: false,
@@ -46,7 +46,15 @@ impl Client {
             cells: Vec::new(),
             players: Vec::new(),
             goal: Coord::new(WIDTH / 2, HEIGHT / 2),
-        })
+        };
+        client
+            .socket
+            .send(Packet::reliable_unordered(
+                client.server_addr,
+                serialize::<Data>(&Data::Connection).unwrap(),
+            ))
+            .expect("should send");
+        Ok(client)
     }
 
     fn handle_received_packets(&mut self) {
@@ -61,7 +69,10 @@ impl Client {
                     }
                     _ => (),
                 },
-                SocketEvent::Connect(_) => self.connected = true,
+                SocketEvent::Connect(_) => {
+                    println!("connected");
+                    self.connected = true;
+                }
                 SocketEvent::Timeout(_) => {
                     eprintln!("connection failed");
                     std::process::exit(1);

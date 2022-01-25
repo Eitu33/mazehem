@@ -48,11 +48,15 @@ impl Server {
     }
 
     fn on_packet_received(&mut self, packet: Packet) {
-        if let Ok(Data::Key(key)) = deserialize::<Data>(packet.payload()) {
-            let client_addr = packet.addr();
-            if let Some(index) = self.clients.iter().position(|x| x == &client_addr) {
-                self.move_player(index, key);
-            } else {
+        match deserialize::<Data>(packet.payload()) {
+            Ok(Data::Key(key)) => {
+                let client_addr = packet.addr();
+                if let Some(index) = self.clients.iter().position(|x| x == &client_addr) {
+                    self.move_player(index, key);
+                }
+            }
+            Ok(Data::Connection) => {
+                let client_addr = packet.addr();
                 self.sender
                     .send(Packet::reliable_unordered(
                         client_addr,
@@ -60,6 +64,7 @@ impl Server {
                     ))
                     .expect("should send");
             }
+            _ => (),
         }
     }
 
