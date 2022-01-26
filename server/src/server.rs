@@ -44,6 +44,7 @@ impl Server {
             if let Ok(event) = self.receiver.recv() {
                 match event {
                     SocketEvent::Packet(packet) => self.on_packet_received(packet),
+                    SocketEvent::Connect(addr) => self.on_connected_client(addr),
                     SocketEvent::Disconnect(addr) => self.on_disconnected_client(addr),
                     _ => (),
                 }
@@ -88,14 +89,16 @@ impl Server {
             println!("client ip {} has been registered", addr);
             self.clients.push(addr);
         }
-        let vec = self.cells.clone().into_iter().map(|x| x.1).collect::<Vec<Cell>>();
-        for chunk in vec.chunks(10) {
-            self.sender
-                .send(Packet::reliable_unordered(
-                    addr,
-                    serialize::<Data>(&Data::Cells(chunk.to_vec())).unwrap(),
-                ))
-                .expect("should send");
+        if self.clients.contains(&addr) {
+            let vec = self.cells.clone().into_iter().map(|x| x.1).collect::<Vec<Cell>>();
+            for chunk in vec.chunks(10) {
+                self.sender
+                    .send(Packet::reliable_unordered(
+                        addr,
+                        serialize::<Data>(&Data::Cells(chunk.to_vec())).unwrap(),
+                    ))
+                    .expect("should send");
+            }
         }
     }
 
