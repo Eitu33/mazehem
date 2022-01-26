@@ -8,7 +8,7 @@ use std::io;
 use std::net::SocketAddr;
 use std::time::Instant;
 use types::cell::Cell;
-use types::constants::{HEIGHT, PATH_COLOR, WALLS_COLOR, WIDTH};
+use types::constants::{HEIGHT, WALLS_COLOR, WIDTH};
 use types::coord::Coord;
 use types::data::Data;
 use types::drawable::Drawable;
@@ -113,15 +113,14 @@ impl Game for Client {
     }
 
     fn draw(&mut self, frame: &mut Frame, _timer: &Timer) {
+        frame.clear(Color::from_rgb_u32(WALLS_COLOR));
         if self.connected {
-            frame.clear(Color::from_rgb_u32(WALLS_COLOR));
             let mut mesh = Mesh::new();
             self.cells.draw(&mut mesh);
             self.goal.draw(&mut mesh);
             self.players.draw(&mut mesh);
             mesh.draw(&mut frame.as_target());
         } else {
-            frame.clear(Color::from_rgb_u32(PATH_COLOR));
             let mut font =
                 Font::from_bytes(frame.gpu(), include_bytes!("../../resources/visitor2.ttf"))
                     .expect("failed to load font");
