@@ -3,6 +3,8 @@ use coffee::graphics::{Color, Frame, Mesh, Window};
 use coffee::load::Task;
 use coffee::{Game, Timer};
 use laminar::{Packet, Socket, SocketEvent};
+use rand::rngs::OsRng;
+use rsa::{PaddingScheme, PublicKey, RsaPrivateKey, RsaPublicKey};
 use std::env;
 use std::io;
 use std::net::SocketAddr;
@@ -70,6 +72,17 @@ impl Client {
                     _ => (),
                 },
                 SocketEvent::Connect(_) => {
+                    if let Some(SocketEvent::Packet(packet)) = self.socket.recv() {
+                        if let Ok(Data::PrivateKey(key)) = deserialize::<Data>(packet.payload()) {
+                            println!("SEND ENC DATA");
+                            let mut rng = OsRng;
+                            let public_key = RsaPublicKey::from(&key);
+                            let data = b"hello server";
+                            let _data = public_key
+                                .encrypt(&mut rng, PaddingScheme::new_pkcs1v15_encrypt(), &data[..])
+                                .expect("failed to encrypt");
+                        }
+                    }
                     println!("connected");
                     self.connected = true;
                 }
