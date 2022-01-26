@@ -72,23 +72,7 @@ impl Client {
                     _ => (),
                 },
                 SocketEvent::Connect(_) => {
-                    if let Some(SocketEvent::Packet(packet)) = self.socket.recv() {
-                        if let Ok(Data::PrivateKey(key)) = deserialize::<Data>(packet.payload()) {
-                            let mut rng = OsRng;
-                            let public_key = RsaPublicKey::from(&key);
-                            let data = b"game client connection";
-                            let enc_data = public_key
-                                .encrypt(&mut rng, PaddingScheme::new_pkcs1v15_encrypt(), &data[..])
-                                .expect("failed to encrypt");
-                            self.socket
-                                .send(Packet::reliable_unordered(
-                                    self.server_addr,
-                                    serialize::<Data>(&Data::Handshake(enc_data)).unwrap(),
-                                ))
-                                .expect("should send");
-                        }
-                    }
-                    println!("connected");
+                    self.encrypted_connection();
                     self.connected = true;
                 }
                 SocketEvent::Timeout(_) => {
@@ -99,6 +83,25 @@ impl Client {
                     eprintln!("connection to the server has been lost");
                     std::process::exit(1);
                 }
+            }
+        }
+    }
+
+    fn encrypted_connection(&mut self) {
+        if let Some(SocketEvent::Packet(packet)) = self.socket.recv() {
+            if let Ok(Data::PrivateKey(key)) = deserialize::<Data>(packet.payload()) {
+                let mut rng = OsRng;
+                let public_key = RsaPublicKey::from(&key);
+                let data = b"game client connection";
+                let enc_data = public_key
+                    .encrypt(&mut rng, PaddingScheme::new_pkcs1v15_encrypt(), &data[..])
+                    .expect("failed to encrypt");
+                self.socket
+                    .send(Packet::reliable_unordered(
+                        self.server_addr,
+                        serialize::<Data>(&Data::Handshake(enc_data)).unwrap(),
+                    ))
+                    .expect("should send");
             }
         }
     }
