@@ -4,7 +4,7 @@ use crossbeam_channel::{Receiver, Sender};
 use indexmap::IndexMap;
 use laminar::{Packet, Socket, SocketEvent};
 use rand::rngs::OsRng;
-use rsa::{PaddingScheme, PublicKey, RsaPrivateKey, RsaPublicKey};
+use rsa::{PaddingScheme, RsaPrivateKey};
 use std::net::SocketAddr;
 use types::cell::Cell;
 use types::constants::{HEIGHT, WIDTH};
@@ -44,7 +44,6 @@ impl Server {
             if let Ok(event) = self.receiver.recv() {
                 match event {
                     SocketEvent::Packet(packet) => self.on_packet_received(packet),
-                    SocketEvent::Connect(addr) => self.on_connected_client(addr),
                     SocketEvent::Disconnect(addr) => self.on_disconnected_client(addr),
                     _ => (),
                 }
@@ -54,9 +53,9 @@ impl Server {
     }
 
     fn on_packet_received(&mut self, packet: Packet) {
+        let client_addr = packet.addr();
         match deserialize::<Data>(packet.payload()) {
             Ok(Data::Key(key)) => {
-                let client_addr = packet.addr();
                 if let Some(index) = self.clients.iter().position(|x| x == &client_addr) {
                     self.move_player(index, key);
                 }
@@ -66,12 +65,19 @@ impl Server {
                 self.sender
                     .send(Packet::reliable_unordered(
                         client_addr,
-                        serialize::<Data>(&Data::PrivateKey(self.private_key.clone()))
-                            .expect("should send"),
+                        serialize::<Data>(&Data::PrivateKey(self.private_key.clone())).unwrap(),
                     ))
                     .expect("should send");
             }
-            Ok(Data::Handshake(_data)) => (),
+            Ok(Data::Handshake(enc_data)) => {
+                let dec_data = self
+                    .private_key
+                    .decrypt(PaddingScheme::new_pkcs1v15_encrypt(), &enc_data)
+                    .expect("failed to decrypt");
+                if dec_data == b"game client connection" {
+                    self.on_connected_client(client_addr);
+                }
+            }
             _ => (),
         }
     }
