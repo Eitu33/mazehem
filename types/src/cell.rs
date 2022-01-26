@@ -1,4 +1,4 @@
-use crate::constants::{LINK_OFFSET, LINK_SIZE, SCALE, SQUARE_SIZE, WINDOW_OFFSET, PATH_COLOR};
+use crate::constants::{LINK_OFFSET, LINK_SIZE, PATH_COLOR, SCALE, SQUARE_SIZE, WINDOW_OFFSET};
 use crate::coord::Coord;
 use crate::drawable::Drawable;
 use coffee::graphics::{Color, Mesh, Rectangle, Shape};
