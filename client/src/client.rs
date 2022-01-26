@@ -3,8 +3,6 @@ use coffee::graphics::{Color, Font, Frame, Mesh, Point, Text, Window};
 use coffee::load::Task;
 use coffee::{Game, Timer};
 use laminar::{Packet, Socket, SocketEvent};
-use rand::rngs::OsRng;
-use rsa::{PaddingScheme, PublicKey, RsaPublicKey};
 use std::env;
 use std::io;
 use std::net::SocketAddr;
@@ -72,7 +70,7 @@ impl Client {
                     _ => (),
                 },
                 SocketEvent::Connect(_) => {
-                    self.encrypted_connection();
+                    println!("connected");
                     self.connected = true;
                 }
                 SocketEvent::Timeout(_) => {
@@ -83,25 +81,6 @@ impl Client {
                     eprintln!("connection to the server has been lost");
                     std::process::exit(1);
                 }
-            }
-        }
-    }
-
-    fn encrypted_connection(&mut self) {
-        if let Some(SocketEvent::Packet(packet)) = self.socket.recv() {
-            if let Ok(Data::PrivateKey(key)) = deserialize::<Data>(packet.payload()) {
-                let mut rng = OsRng;
-                let public_key = RsaPublicKey::from(&key);
-                let data = b"game client connection";
-                let enc_data = public_key
-                    .encrypt(&mut rng, PaddingScheme::new_pkcs1v15_encrypt(), &data[..])
-                    .expect("failed to encrypt");
-                self.socket
-                    .send(Packet::reliable_unordered(
-                        self.server_addr,
-                        serialize::<Data>(&Data::Handshake(enc_data)).unwrap(),
-                    ))
-                    .expect("should send");
             }
         }
     }
@@ -143,11 +122,9 @@ impl Game for Client {
             mesh.draw(&mut frame.as_target());
         } else {
             frame.clear(Color::from_rgb_u32(PATH_COLOR));
-            let mut font = Font::from_bytes(
-                frame.gpu(),
-                include_bytes!("../../resources/visitor2.ttf"),
-            )
-            .expect("failed to load font");
+            let mut font =
+                Font::from_bytes(frame.gpu(), include_bytes!("../../resources/visitor2.ttf"))
+                    .expect("failed to load font");
             font.add(Text {
                 content: "connecting...",
                 position: Point::new(350.0, 300.0),

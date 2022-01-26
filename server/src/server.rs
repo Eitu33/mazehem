@@ -3,8 +3,6 @@ use bincode::{deserialize, serialize};
 use crossbeam_channel::{Receiver, Sender};
 use indexmap::IndexMap;
 use laminar::{Packet, Socket, SocketEvent};
-use rand::rngs::OsRng;
-use rsa::{PaddingScheme, RsaPrivateKey};
 use std::net::SocketAddr;
 use types::cell::Cell;
 use types::constants::{HEIGHT, WIDTH};
@@ -14,7 +12,6 @@ use types::input::SerKey;
 use types::player::{init_players, Player};
 
 pub struct Server {
-    private_key: RsaPrivateKey,
     sender: Sender<Packet>,
     receiver: Receiver<SocketEvent>,
     clients: Vec<SocketAddr>,
@@ -24,13 +21,10 @@ pub struct Server {
 
 impl Server {
     pub fn new() -> Server {
-        let mut rng = OsRng;
-        let private_key = RsaPrivateKey::new(&mut rng, 2048).expect("failed to generate a key");
         let mut socket = Socket::bind("0.0.0.0:9090").unwrap();
         let (sender, receiver) = (socket.get_packet_sender(), socket.get_event_receiver());
         std::thread::spawn(move || socket.start_polling());
         Server {
-            private_key,
             sender,
             receiver,
             clients: Vec::new(),
@@ -62,22 +56,12 @@ impl Server {
                 }
             }
             Ok(Data::Connection) => {
-                let client_addr = packet.addr();
                 self.sender
                     .send(Packet::reliable_unordered(
                         client_addr,
-                        serialize::<Data>(&Data::PrivateKey(self.private_key.clone())).unwrap(),
+                        serialize::<Data>(&Data::Accepted).unwrap(),
                     ))
                     .expect("should send");
-            }
-            Ok(Data::Handshake(enc_data)) => {
-                let dec_data = self
-                    .private_key
-                    .decrypt(PaddingScheme::new_pkcs1v15_encrypt(), &enc_data)
-                    .expect("failed to decrypt");
-                if dec_data == b"game client connection" {
-                    self.on_connected_client(client_addr);
-                }
             }
             _ => (),
         }
